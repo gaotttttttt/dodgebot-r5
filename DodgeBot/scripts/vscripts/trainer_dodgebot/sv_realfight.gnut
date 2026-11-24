@@ -1,0 +1,1307 @@
+// Real fight ("真人对战"): a separate brain for DodgeBot's legend bots. Off by
+// default; while off, nothing here runs and the plain dodge brain is unchanged.
+//
+// On top of the dodge brain's strafe combos, the bot
+//   - runs to real cover when it is hurt or reloading, waits, and peeks
+//   - slide-jumps to change position, and swings out of cover with one, shooting
+//     in the air before you expect it
+//   - comes looking for you when it loses sight of you
+//   - pushes, holds or backs off by who is winning, with a temper of its own that
+//     changes every life, moving on keyboard directions (W/A/S/D and diagonals)
+//   - reads your movement late: change direction and its aim overshoots
+// Cover is found with traces: a spot your eyes cannot see, that it can run to in
+// a straight line, with a step beside it from which it can see you again.
+//
+// Console: realfight on|off
+//          realfight cover off|hurt|often
+//          realfight slide on|off
+
+global function RealFight_Init
+global function RealFight_IsOn
+global function RealFight_Think
+global function RealFight_AimTarget
+global function RealFight_ForgetPlayer
+global function RealFight_HoldsFire
+global function RealFight_FireReact
+
+#if SERVER
+const float RF_TICK = 0.05
+const int RF_COVER_OFF = 0
+const int RF_COVER_HURT = 1            // low health or reloading
+const int RF_COVER_OFTEN = 2           // also when it just took a hit
+const float RF_HURT_FRAC = 0.35
+const float RF_COVER_GAP = 2.5         // rest between cover searches
+const float RF_COVER_MAX_RUN = 3.0     // seconds before a run is given up
+const float RF_MIN_ENEMY_DIST = 150.0  // never take cover right next to the enemy
+const float RF_MAX_STEP = 70.0         // floor height difference it will run to
+const float RF_SLIDE_MIN_SPEED = 205.0
+const float RF_SLIDE_MIN_DIST = 230.0
+const float RF_SLIDE_GAP = 4.0
+const float RF_LOST_AFTER = 1.2        // no sight this long: go and look
+const float RF_TURN_MAX = 720.0        // degrees per second while running: fast, then easing in
+const float RF_TURN_MIN = 90.0
+const float RF_AIM_REACT_WORST = 0.30  // how late it notices that you changed direction
+const float RF_AIM_REACT_BEST = 0.14
+const float RF_AIM_HISTORY = 0.5
+const int RF_PLAN_BACK = -1
+const int RF_PLAN_HOLD = 0
+const int RF_PLAN_PUSH = 1
+const float RF_HEAD = 62.0
+const float RF_CHEST = 42.0
+
+struct RealFightPrefs
+{
+	bool on = false
+	int cover = RF_COVER_HURT
+	bool slide = true
+}
+
+struct RealFightMemory
+{
+	float nextCoverAt = 0.0
+	float nextSlideAt = 0.0
+	float nextHuntAt = 0.0
+	float seenAt = 0.0
+	float sightAt = -99.0
+	bool sight = true
+	vector seenPos = <0, 0, 0>
+	float viewYaw = 0.0
+
+	float temper = 0.5            // 0 careful .. 1 aggressive, rolled every life
+	int plan = RF_PLAN_HOLD
+	float planUntil = 0.0
+	float keyYaw = 90.0           // last key direction, degrees from the enemy
+	array<float> histAt           // your recent positions
+	array<vector> histPos
+	float burstUntil = 0.0
+	float pauseUntil = 0.0
+	float prefireUntil = -1.0     // planned swing: shoots the moment it sees you
+	float nextAmbushAt = 0.0
+}
+
+struct RealFightCover
+{
+	bool ok = false
+	vector pos = <0, 0, 0>
+	vector peek = <0, 0, 0>
+	bool hasPeek = false
+}
+
+struct RealFightSwing
+{
+	bool ok = false
+	vector from = <0, 0, 0>       // run-up start, still hidden
+	bool hasRunUp = false
+	vector dest = <0, 0, 0>       // out in the open, sees the enemy
+}
+
+struct
+{
+	table< entity, RealFightPrefs > prefs
+	table< entity, RealFightMemory > memory
+} file
+
+void function RealFight_Init()
+{
+	AddClientCommandCallback( "realfight", RealFight_Cmd )
+	AddClientCommandCallback( "RealFight", RealFight_Cmd )
+	AddClientCommandCallback( "REALFIGHT", RealFight_Cmd )
+}
+
+// ---- Settings -------------------------------------------------------------------
+
+RealFightPrefs function RealFight_Prefs( entity owner )
+{
+	if ( !( owner in file.prefs ) )
+	{
+		RealFightPrefs fresh
+		file.prefs[ owner ] <- fresh
+	}
+	return file.prefs[ owner ]
+}
+
+bool function RealFight_IsOn( entity owner )
+{
+	if ( !( owner in file.prefs ) )
+		return false
+	return file.prefs[ owner ].on
+}
+
+void function RealFight_ForgetPlayer( entity player )
+{
+	if ( player in file.prefs )
+		delete file.prefs[ player ]
+}
+
+void function RealFight_Cmd( entity player, array<string> args )
+{
+	if ( !IsValid( player ) || !player.IsPlayer() )
+		return
+
+	RealFightPrefs prefs = RealFight_Prefs( player )
+	string a = args.len() >= 1 ? args[0].tolower() : ""
+	string b = args.len() >= 2 ? args[1].tolower() : ""
+	bool bad = false
+	if ( a == "on" || a == "1" )
+		prefs.on = true
+	else if ( a == "off" || a == "0" )
+		prefs.on = false
+	else if ( a == "cover" && ( b == "off" || b == "0" ) )
+		prefs.cover = RF_COVER_OFF
+	else if ( a == "cover" && ( b == "hurt" || b == "1" ) )
+		prefs.cover = RF_COVER_HURT
+	else if ( a == "cover" && ( b == "often" || b == "2" ) )
+		prefs.cover = RF_COVER_OFTEN
+	else if ( a == "slide" && ( b == "on" || b == "1" ) )
+		prefs.slide = true
+	else if ( a == "slide" && ( b == "off" || b == "0" ) )
+		prefs.slide = false
+	else if ( a != "" )
+		bad = true
+
+	if ( bad )
+	{
+		SendHudMessage( player, "用法: realfight on / off\nrealfight cover off / hurt / often\nrealfight slide on / off", -1, 0.3, 255, 200, 120, 255, 0.1, 5.0, 0.5 )
+		return
+	}
+
+	string coverName = "关"
+	if ( prefs.cover == RF_COVER_HURT )
+		coverName = "残血/换弹"
+	else if ( prefs.cover == RF_COVER_OFTEN )
+		coverName = "积极"
+	string onName = prefs.on ? "开" : "关"
+	string slideName = prefs.slide ? "开" : "关"
+	SendHudMessage( player, format( "真人对战: %s | 掩体: %s | 滑铲跳: %s", onName, coverName, slideName ), -1, 0.3, 255, 255, 255, 255, 0.1, 3.0, 0.5 )
+	printt( format( "[REALFIGHT] %s on=%s cover=%d slide=%s", player.GetPlayerName(), string( prefs.on ), prefs.cover, string( prefs.slide ) ) )
+}
+
+// ---- Senses ---------------------------------------------------------------------
+
+RealFightMemory function RealFight_Memory( entity bot )
+{
+	if ( !( bot in file.memory ) )
+	{
+		// Respawned bots are new entities; drop the ones that are gone.
+		array<entity> gone = []
+		foreach ( entity old, RealFightMemory m in file.memory )
+		{
+			if ( !IsValid( old ) )
+				gone.append( old )
+		}
+		foreach ( entity old in gone )
+			delete file.memory[ old ]
+
+		RealFightMemory fresh
+		fresh.seenAt = Time()
+		fresh.temper = RandomFloatRange( 0.1, 0.95 )
+		fresh.nextAmbushAt = Time() + RandomFloatRange( 1.5, 4.0 )
+		fresh.nextSlideAt = Time() + RandomFloatRange( 0.5, 2.0 )
+		file.memory[ bot ] <- fresh
+	}
+	return file.memory[ bot ]
+}
+
+bool function RealFight_Clear( vector from, vector to, array<entity> ignore )
+{
+	TraceResults tr = TraceLine( from, to, ignore, TRACE_MASK_SHOT, TRACE_COLLISION_GROUP_NONE )
+	return tr.fraction >= 0.99
+}
+
+// Sight of the enemy, refreshed ten times a second.
+bool function RealFight_Sight( DodgeState st )
+{
+	RealFightMemory mem = RealFight_Memory( st.bot )
+	if ( Time() - mem.sightAt < 0.1 )
+		return mem.sight
+	mem.sightAt = Time()
+	mem.sight = RealFight_Clear( st.bot.EyePosition(), st.owner.EyePosition(), [ st.bot, st.owner ] )
+	if ( mem.sight )
+	{
+		mem.seenAt = Time()
+		mem.seenPos = st.owner.GetOrigin()
+	}
+	return mem.sight
+}
+
+// Where the bot aims: at you while it sees you, else where it last saw you.
+vector function RealFight_AimTarget( DodgeState st, vector target )
+{
+	if ( !RealFight_IsOn( st.owner ) )
+		return target
+	RealFight_Sight( st )
+	RealFightMemory mem = RealFight_Memory( st.bot )
+	RealFight_RecordTarget( mem, target )
+	if ( mem.sight )
+		return RealFight_LateRead( st, mem, target )
+	if ( mem.seenPos == < 0, 0, 0 > )
+		return target
+	return mem.seenPos + < 0, 0, RF_CHEST + 6.0 >
+}
+
+void function RealFight_RecordTarget( RealFightMemory mem, vector target )
+{
+	float now = Time()
+	int n = mem.histAt.len()
+	if ( n > 0 && now - mem.histAt[ n - 1 ] < 0.02 )
+		return
+	mem.histAt.append( now )
+	mem.histPos.append( target )
+	while ( mem.histAt.len() > 2 && now - mem.histAt[0] > RF_AIM_HISTORY )
+	{
+		mem.histAt.remove( 0 )
+		mem.histPos.remove( 0 )
+	}
+}
+
+// What a person tracks: where you were a reaction ago, carried on at the speed
+// you had then. Keep going straight and it is right on you; turn, and it keeps
+// sliding the old way until it notices.
+vector function RealFight_LateRead( DodgeState st, RealFightMemory mem, vector target )
+{
+	float skill = min( max( float( DodgeBot_GetAim( st.owner ) ) / 100.0, 0.0 ), 1.0 )
+	float react = RF_AIM_REACT_WORST + ( RF_AIM_REACT_BEST - RF_AIM_REACT_WORST ) * skill
+	float at = Time() - react
+	for ( int i = mem.histAt.len() - 1; i >= 1; i-- )
+	{
+		if ( mem.histAt[ i ] > at )
+			continue
+		float dt = mem.histAt[ i ] - mem.histAt[ i - 1 ]
+		if ( dt < 0.01 || dt > 0.2 )
+			return target
+		vector vel = ( mem.histPos[ i ] - mem.histPos[ i - 1 ] ) * ( 1.0 / dt )
+		if ( Length( vel ) > 600.0 )
+			return target   // teleport or respawn
+		vector lead = vel * ( Time() - mem.histAt[ i ] )
+		// Height changes are read worse than sideways ones.
+		return mem.histPos[ i ] + < lead.x, lead.y, lead.z * 0.5 >
+	}
+	return target
+}
+
+// A planned swing is already aimed and waiting, so there is no surprise to
+// recover from: it shoots almost at once.
+float function RealFight_FireReact( DodgeState st, float normal )
+{
+	if ( !RealFight_IsOn( st.owner ) )
+		return normal
+	if ( Time() < RealFight_Memory( st.bot ).prefireUntil )
+		return RandomFloatRange( 0.03, 0.08 )
+	return normal
+}
+
+// Long range: bursts with short breaks, like a player controlling recoil.
+bool function RealFight_HoldsFire( DodgeState st )
+{
+	if ( !RealFight_IsOn( st.owner ) || st.fireMode != 0 )
+		return false
+	RealFightMemory mem = RealFight_Memory( st.bot )
+	float now = Time()
+	if ( now < mem.pauseUntil )
+		return true
+	float dist = Distance( st.bot.GetOrigin(), st.owner.GetOrigin() )
+	if ( dist < 550.0 )
+	{
+		mem.burstUntil = 0.0
+		return false
+	}
+	if ( mem.burstUntil <= 0.0 )
+	{
+		mem.burstUntil = now + RandomFloatRange( 0.4, 1.0 )
+	}
+	else if ( now > mem.burstUntil )
+	{
+		mem.burstUntil = 0.0
+		mem.pauseUntil = now + RandomFloatRange( 0.12, 0.35 )
+		return true
+	}
+	return false
+}
+
+// ---- Terrain --------------------------------------------------------------------
+
+vector function RealFight_Flat( vector v )
+{
+	return < v.x, v.y, 0.0 >
+}
+
+// Walkable floor under a point, near the given height.
+AimTrainerSpawnSpot function RealFight_Floor( vector pos, float nearZ )
+{
+	AimTrainerSpawnSpot spot = AimTrainer_CheckSpawnSpot( null, pos, false )
+	if ( spot.ok && fabs( spot.origin.z - nearZ ) > RF_MAX_STEP )
+		spot.ok = false
+	return spot
+}
+
+// Straight run for a player hull, knee-high clutter ignored.
+bool function RealFight_PathClear( vector from, vector to, entity bot )
+{
+	TraceResults tr = TraceHull( from, to, < -15, -15, 20 >, < 15, 15, 70 >, [ bot ], AIMTRAINER_BODY_MASK, TRACE_COLLISION_GROUP_NONE )
+	return !tr.startSolid && tr.fraction >= 0.97
+}
+
+// No drop halfway along the run.
+bool function RealFight_RunOk( vector from, vector to, entity bot )
+{
+	if ( !RealFight_PathClear( from, to, bot ) )
+		return false
+	vector mid = ( from + to ) * 0.5
+	TraceResults down = TraceLine( mid + < 0, 0, 30 >, mid - < 0, 0, 110 >, [ bot ], AIMTRAINER_WORLD_MASK, TRACE_COLLISION_GROUP_NONE )
+	return down.fraction < 1.0
+}
+
+// The enemy cannot see a body standing here (head, chest, both shoulders).
+bool function RealFight_Hidden( vector ground, vector eye, array<entity> ignore )
+{
+	if ( RealFight_Clear( eye, ground + < 0, 0, RF_HEAD >, ignore ) )
+		return false
+	vector right = AnglesToRight( < 0.0, VectorToAngles( RealFight_Flat( ground - eye ) ).y, 0.0 > )
+	if ( RealFight_Clear( eye, ground + < 0, 0, RF_CHEST > + right * 16.0, ignore ) )
+		return false
+	if ( RealFight_Clear( eye, ground + < 0, 0, RF_CHEST > - right * 16.0, ignore ) )
+		return false
+	return true
+}
+
+// A spot beside the cover that sees the enemy; nearest step first.
+void function RealFight_FindPeek( RealFightCover cover, vector eye, entity bot, array<entity> ignore )
+{
+	vector right = AnglesToRight( < 0.0, VectorToAngles( RealFight_Flat( eye - cover.pos ) ).y, 0.0 > )
+	float first = DodgeBot_Chance( 0.5 ) ? 1.0 : -1.0
+	for ( int i = 0; i < 3; i++ )
+	{
+		float off = 45.0 + 40.0 * float( i )
+		for ( int k = 0; k < 2; k++ )
+		{
+			float sgn = k == 0 ? first : -first
+			vector want = cover.pos + right * ( off * sgn )
+			if ( !RealFight_Clear( want + < 0, 0, RF_HEAD >, eye, ignore ) )
+				continue
+			if ( !RealFight_PathClear( cover.pos, want, bot ) )
+				continue
+			AimTrainerSpawnSpot spot = RealFight_Floor( want, cover.pos.z )
+			if ( !spot.ok )
+				continue
+			cover.peek = spot.origin
+			cover.hasPeek = true
+			return
+		}
+	}
+}
+
+RealFightCover function RealFight_FindCover( DodgeState st )
+{
+	RealFightCover best
+	float bestScore = 99999.0
+	entity bot = st.bot
+	vector org = bot.GetOrigin()
+	vector eye = st.owner.EyePosition()
+	vector toEnemy = Normalize( RealFight_Flat( eye - org ) )
+	array<entity> ignore = [ bot, st.owner ]
+	array<float> radii = [ 110.0, 190.0, 280.0, 380.0 ]
+	float yawStart = RandomFloatRange( 0.0, 22.5 )
+
+	foreach ( float radius in radii )
+	{
+		for ( int i = 0; i < 16; i++ )
+		{
+			float yaw = DodgeBot_WrapYaw( yawStart + 22.5 * float( i ) )
+			vector dir = AnglesToForward( < 0.0, yaw, 0.0 > )
+			vector want = org + dir * radius
+			if ( Distance2D( want, eye ) < RF_MIN_ENEMY_DIST )
+				continue
+
+			// Nearer is better; running at the enemy is worse.
+			float score = radius + DotProduct( dir, toEnemy ) * 120.0 + RandomFloatRange( 0.0, 30.0 )
+			if ( score >= bestScore )
+				continue
+			// Cheapest rejects first: one sight line, then the floor, then the run.
+			if ( RealFight_Clear( eye, want + < 0, 0, RF_HEAD >, ignore ) )
+				continue
+			AimTrainerSpawnSpot spot = RealFight_Floor( want, org.z )
+			if ( !spot.ok )
+				continue
+			if ( !RealFight_Hidden( spot.origin, eye, ignore ) || !RealFight_RunOk( org, spot.origin, bot ) )
+				continue
+
+			RealFightCover cover
+			cover.ok = true
+			cover.pos = spot.origin
+			RealFight_FindPeek( cover, eye, bot, ignore )
+			if ( !cover.hasPeek )
+				score += 150.0
+			if ( score >= bestScore )
+				continue
+			best = cover
+			bestScore = score
+		}
+	}
+	return best
+}
+
+// ---- Driving --------------------------------------------------------------------
+
+// Stick input that moves along a world direction whatever way the bot looks.
+void function RealFight_Move( DodgeState st, vector dir, float viewYaw, float mag, int buttons )
+{
+	vector view = < 0.0, DodgeBot_WrapYaw( viewYaw ), 0.0 >
+	float fwd = DotProduct( dir, AnglesToForward( view ) ) * mag
+	float side = DotProduct( dir, AnglesToRight( view ) ) * mag * DodgeBot_SideSign()
+	try
+	{
+		st.bot.BotCmd_SetMove( fwd, side, buttons )
+	}
+	catch ( eMove )
+	{
+	}
+}
+
+// Turns the view toward a direction at a human rate; returns the yaw.
+float function RealFight_Turn( DodgeState st, vector dir )
+{
+	RealFightMemory mem = RealFight_Memory( st.bot )
+	float want = VectorToAngles( dir ).y
+	float delta = DodgeBot_WrapYaw( want - mem.viewYaw )
+	// Fast flick that eases in, like a mouse swipe.
+	float rate = min( max( fabs( delta ) * 9.0, RF_TURN_MIN ), RF_TURN_MAX )
+	float step = rate * RF_TICK
+	delta = min( max( delta, -step ), step )
+	mem.viewYaw = DodgeBot_WrapYaw( mem.viewYaw + delta )
+	try
+	{
+		st.bot.BotCmd_SetLook( < 0.0, mem.viewYaw, 0.0 > )
+	}
+	catch ( eLook )
+	{
+	}
+	return mem.viewYaw
+}
+
+// Before running: hands off the trigger and the sights.
+void function RealFight_BeginRun( DodgeState st )
+{
+	RealFight_Memory( st.bot ).viewYaw = DodgeBot_WrapYaw( st.bot.EyeAngles().y )
+	st.running = true
+	st.wantAds = false
+	st.zoomMissingSince = -1.0
+}
+
+// After running: the crosshair starts where it looks and swings back to you.
+void function RealFight_EndRun( DodgeState st )
+{
+	st.running = false
+	st.zoomMissingSince = -1.0
+	st.anchor = st.bot.GetOrigin()
+	st.aimPoint = st.bot.EyePosition() + AnglesToForward( < 0.0, RealFight_Memory( st.bot ).viewYaw, 0.0 > ) * 200.0
+	st.lastAimTime = Time()
+}
+
+bool function RealFight_Alive( DodgeState st )
+{
+	return IsValid( st.bot ) && IsAlive( st.bot ) && IsValid( st.owner ) && IsAlive( st.owner )
+}
+
+bool function RealFight_Still( DodgeState st )
+{
+	return RealFight_Alive( st ) && RealFight_IsOn( st.owner ) && DodgeBot_GetLevel( st.owner ) > 0
+}
+
+// Sprint to a spot, with a slide-jump on the way when there is room. Returns
+// true on arrival.
+bool function RealFight_RunTo( DodgeState st, vector dest, bool slide )
+{
+	entity bot = st.bot
+	RealFight_BeginRun( st )
+	float start = Time()
+	vector checkPos = bot.GetOrigin()
+	float checkAt = Time() + 0.4
+	float slideAt = -1.0
+	bool arrived = false
+
+	while ( Time() - start < RF_COVER_MAX_RUN )
+	{
+		vector to = RealFight_Flat( dest - bot.GetOrigin() )
+		float d = Length( to )
+		if ( d < 26.0 )
+		{
+			arrived = true
+			break
+		}
+		vector dir = Normalize( to )
+		float yaw = RealFight_Turn( st, dir )
+		int buttons = IN_SPEED
+		if ( st.wantReload )
+			buttons = buttons | IN_RELOAD
+
+		float speed = Length( RealFight_Flat( bot.GetVelocity() ) )
+		if ( slide && slideAt < 0.0 && d > RF_SLIDE_MIN_DIST && speed > RF_SLIDE_MIN_SPEED && bot.IsOnGround() )
+		{
+			slideAt = Time()
+			RealFight_Memory( bot ).nextSlideAt = Time() + RF_SLIDE_GAP
+		}
+		if ( slideAt > 0.0 )
+			buttons = buttons | RealFight_SlideButtons( Time() - slideAt )
+		// Ease off so it does not overshoot the spot.
+		float mag = d < 60.0 ? 0.6 : 1.0
+		if ( d < 60.0 )
+			buttons = buttons & ~IN_SPEED
+		RealFight_Move( st, dir, yaw, mag, buttons )
+
+		wait RF_TICK
+		if ( !RealFight_Still( st ) )
+			break
+		if ( Time() >= checkAt )
+		{
+			if ( Distance2D( bot.GetOrigin(), checkPos ) < 20.0 )
+				break   // stuck
+			checkPos = bot.GetOrigin()
+			checkAt = Time() + 0.4
+		}
+	}
+	if ( IsValid( bot ) )
+		RealFight_EndRun( st )
+	return arrived
+}
+
+// Slide, then jump out of it: duck held through the slide, one jump press.
+int function RealFight_SlideButtons( float t )
+{
+	int buttons = 0
+	if ( t < 0.45 )
+		buttons = buttons | IN_DUCK
+	if ( t >= 0.25 && t < 0.35 )
+		buttons = buttons | IN_JUMP
+	return buttons
+}
+
+// A slide-jump across the enemy's view: sprint, slide, jump, and swing the
+// crosshair back while in the air.
+bool function RealFight_SlideJump( DodgeState st, DodgeParams p )
+{
+	entity bot = st.bot
+	vector org = bot.GetOrigin()
+	vector toEnemy = Normalize( RealFight_Flat( st.owner.GetOrigin() - org ) )
+	float base = VectorToAngles( toEnemy ).y
+	float dist = Distance2D( org, st.owner.GetOrigin() )
+
+	// Pushing goes in at an angle, backing off goes out, otherwise across.
+	int plan = RealFight_Memory( bot ).plan
+	float bend = RandomFloatRange( 60.0, 95.0 )
+	if ( plan == RF_PLAN_BACK || dist < 200.0 )
+		bend = RandomFloatRange( 110.0, 150.0 )
+	else if ( plan == RF_PLAN_PUSH || dist > 700.0 )
+		bend = RandomFloatRange( 20.0, 55.0 )
+	if ( DodgeBot_Chance( 0.5 ) )
+		bend = -bend
+
+	vector dir = < 0, 0, 0 >
+	bool found = false
+	for ( int i = 0; i < 2; i++ )
+	{
+		float sgn = i == 0 ? 1.0 : -1.0
+		dir = AnglesToForward( < 0.0, DodgeBot_WrapYaw( base + bend * sgn ), 0.0 > )
+		vector dest = org + dir * 380.0
+		AimTrainerSpawnSpot spot = RealFight_Floor( dest, org.z )
+		if ( spot.ok && RealFight_RunOk( org, spot.origin, bot ) )
+		{
+			found = true
+			break
+		}
+	}
+	if ( !found )
+		return false
+
+	RealFight_BeginRun( st )
+	float start = Time()
+	float slideAt = -1.0
+	float peak = 0.0
+	bool aiming = false
+	while ( Time() - start < 1.9 )
+	{
+		float speed = Length( RealFight_Flat( bot.GetVelocity() ) )
+		peak = max( peak, speed )
+		int buttons = 0
+		float yaw = 0.0
+		if ( slideAt < 0.0 )
+		{
+			yaw = RealFight_Turn( st, dir )
+			buttons = IN_SPEED
+			if ( speed > RF_SLIDE_MIN_SPEED && bot.IsOnGround() && Time() - start > 0.25 )
+				slideAt = Time()
+			else if ( Time() - start > 0.9 )
+				break   // never got up to speed
+		}
+		else
+		{
+			float t = Time() - slideAt
+			buttons = RealFight_SlideButtons( t )
+			if ( t < 0.3 )
+			{
+				yaw = RealFight_Turn( st, dir )
+			}
+			else
+			{
+				if ( !aiming )
+				{
+					RealFight_EndRun( st )
+					aiming = true
+				}
+				DodgeBot_BotAim( st )
+				yaw = bot.EyeAngles().y
+				buttons = buttons | DodgeBot_BotButtons( st )
+			}
+			if ( t > 0.5 && bot.IsOnGround() )
+				break
+		}
+		RealFight_Move( st, dir, yaw, 1.0, buttons )
+		wait RF_TICK
+		if ( !RealFight_Still( st ) )
+			break
+	}
+	if ( IsValid( bot ) && !aiming )
+		RealFight_EndRun( st )
+	if ( IsValid( bot ) )
+		st.anchor = bot.GetOrigin()
+	printt( format( "[REALFIGHT] slide jump slid=%s peak=%.0f", string( slideAt > 0.0 ), peak ) )
+	return true
+}
+
+// A way out of a hidden spot for a slide-jump: open ground to one side that
+// sees the enemy, and if possible a hidden run-up on the other side.
+RealFightSwing function RealFight_FindSwing( DodgeState st, vector origin )
+{
+	RealFightSwing swing
+	entity bot = st.bot
+	vector eye = st.owner.EyePosition()
+	array<entity> ignore = [ bot, st.owner ]
+	vector toEnemy = Normalize( RealFight_Flat( eye - origin ) )
+	vector right = AnglesToRight( < 0.0, VectorToAngles( toEnemy ).y, 0.0 > )
+	float first = DodgeBot_Chance( 0.5 ) ? 1.0 : -1.0
+	array<float> outs = [ 320.0, 250.0, 190.0 ]
+	array<float> aheads = [ 60.0, 0.0, 140.0 ]
+
+	for ( int k = 0; k < 2; k++ )
+	{
+		float sgn = k == 0 ? first : -first
+		foreach ( float reach in outs )
+		{
+			foreach ( float ahead in aheads )
+			{
+				vector want = origin + right * ( reach * sgn ) + toEnemy * ahead
+				if ( Distance2D( want, eye ) < RF_MIN_ENEMY_DIST )
+					continue
+				if ( !RealFight_Clear( want + < 0, 0, RF_HEAD >, eye, ignore ) )
+					continue
+				AimTrainerSpawnSpot spot = RealFight_Floor( want, origin.z )
+				if ( !spot.ok || !RealFight_RunOk( origin, spot.origin, bot ) )
+					continue
+
+				swing.ok = true
+				swing.dest = spot.origin
+				// Speed has to be built before the corner, out of sight.
+				vector dir = Normalize( RealFight_Flat( spot.origin - origin ) )
+				array<float> backs = [ 150.0, 100.0, 60.0 ]
+				foreach ( float back in backs )
+				{
+					vector start = origin - dir * back
+					AimTrainerSpawnSpot behind = RealFight_Floor( start, origin.z )
+					if ( !behind.ok || !RealFight_RunOk( origin, behind.origin, bot ) )
+						continue
+					if ( !RealFight_Hidden( behind.origin, eye, ignore ) )
+						continue
+					swing.hasRunUp = true
+					swing.from = behind.origin
+					break
+				}
+				return swing
+			}
+		}
+	}
+	return swing
+}
+
+// The surprise: sprint up behind cover, slide out, jump, and shoot in the air.
+// While sprinting it already looks half toward you (forward plus a strafe key),
+// so the crosshair only has a little left to travel.
+void function RealFight_SwingOut( DodgeState st, DodgeParams p, RealFightSwing swing )
+{
+	entity bot = st.bot
+	RealFightMemory mem = RealFight_Memory( bot )
+	if ( swing.hasRunUp )
+	{
+		RealFight_StepTo( st, p, swing.from, 0.9 )
+		if ( !RealFight_Still( st ) )
+			return
+		if ( DodgeBot_Chance( 0.4 ) )
+			RealFight_Hold( st, p, RandomFloatRange( 0.1, 0.6 ), true, false )
+		if ( !RealFight_Still( st ) )
+			return
+	}
+
+	vector dir = Normalize( RealFight_Flat( swing.dest - bot.GetOrigin() ) )
+	float runYaw = VectorToAngles( dir ).y
+	RealFight_BeginRun( st )
+	float start = Time()
+	float slideAt = -1.0
+	float seenAfter = -1.0
+	float peak = 0.0
+	while ( Time() - start < 2.2 )
+	{
+		float speed = Length( RealFight_Flat( bot.GetVelocity() ) )
+		peak = max( peak, speed )
+		bool sight = RealFight_Sight( st )
+		if ( sight && seenAfter < 0.0 )
+			seenAfter = Time() - start
+		int buttons = 0
+		float yaw = 0.0
+		if ( slideAt < 0.0 )
+		{
+			vector known = mem.seenPos == < 0, 0, 0 > ? st.owner.GetOrigin() : mem.seenPos
+			float enemyYaw = VectorToAngles( RealFight_Flat( known - bot.GetOrigin() ) ).y
+			float lean = min( max( DodgeBot_WrapYaw( enemyYaw - runYaw ), -38.0 ), 38.0 )
+			yaw = RealFight_Turn( st, AnglesToForward( < 0.0, DodgeBot_WrapYaw( runYaw + lean ), 0.0 > ) )
+			buttons = IN_SPEED
+			float t = Time() - start
+			bool fast = speed > RF_SLIDE_MIN_SPEED && t > 0.2
+			// Already out in the open: slide now with whatever speed there is.
+			bool forced = sight && speed > 165.0 && t > 0.2
+			if ( ( fast || forced ) && bot.IsOnGround() )
+			{
+				slideAt = Time()
+				mem.prefireUntil = Time() + 1.3
+				RealFight_EndRun( st )
+			}
+			else if ( t > 1.1 )
+			{
+				break
+			}
+		}
+		if ( slideAt > 0.0 )
+		{
+			float t = Time() - slideAt
+			DodgeBot_BotAim( st )
+			yaw = bot.EyeAngles().y
+			buttons = RealFight_SlideButtons( t ) | DodgeBot_BotButtons( st )
+			if ( t > 0.5 && bot.IsOnGround() )
+				break
+		}
+		RealFight_Move( st, dir, yaw, 1.0, buttons )
+		wait RF_TICK
+		if ( !RealFight_Still( st ) )
+			break
+	}
+	if ( !IsValid( bot ) )
+		return
+	if ( slideAt < 0.0 )
+		RealFight_EndRun( st )
+	st.anchor = bot.GetOrigin()
+	mem.nextSlideAt = Time() + RF_SLIDE_GAP
+	printt( format( "[REALFIGHT] %s SWING runup=%s slid=%s seen after %.2f peak=%.0f", bot.GetPlayerName(), string( swing.hasRunUp ), string( slideAt > 0.0 ), seenAfter, peak ) )
+}
+
+// Moves toward a near point keeping the crosshair up; ends early on arrival.
+bool function RealFight_StepTo( DodgeState st, DodgeParams p, vector dest, float maxTime )
+{
+	float endTime = Time() + maxTime
+	while ( Time() < endTime )
+	{
+		vector to = RealFight_Flat( dest - st.bot.GetOrigin() )
+		float d = Length( to )
+		if ( d < 10.0 )
+			return true
+		DodgeBot_BotAim( st )
+		RealFight_Move( st, Normalize( to ), st.bot.EyeAngles().y, d < 24.0 ? 0.5 : 1.0, DodgeBot_BotButtons( st ) )
+		wait RF_TICK
+		if ( !RealFight_Still( st ) )
+			return false
+		DodgeBot_Perceive( st, p )
+	}
+	return false
+}
+
+// Stands aiming where it expects you; stops early when stopOnSight and seen.
+bool function RealFight_Hold( DodgeState st, DodgeParams p, float duration, bool stopOnSight, bool reload )
+{
+	float start = Time()
+	vector home = st.bot.GetOrigin()
+	vector shuffle = < 0, 0, 0 >
+	bool shuffling = false
+	float shuffleAt = Time() + RandomFloatRange( 0.1, 0.4 )
+	while ( Time() - start < duration )
+	{
+		DodgeBot_BotAim( st )
+		int buttons = DodgeBot_BotButtons( st )
+		if ( reload && Time() - start < 0.15 )
+			buttons = IN_RELOAD
+		// Restless feet: small shuffles with breaks, never more than a step.
+		vector drift = home - st.bot.GetOrigin()
+		vector dir = < 0, 0, 0 >
+		float mag = 0.0
+		if ( Time() >= shuffleAt )
+		{
+			shuffleAt = Time() + RandomFloatRange( 0.15, 0.6 )
+			float yaw = st.bot.EyeAngles().y + ( DodgeBot_Chance( 0.5 ) ? 90.0 : -90.0 )
+			shuffle = AnglesToForward( < 0.0, DodgeBot_WrapYaw( yaw ), 0.0 > )
+			shuffling = DodgeBot_Chance( 0.45 )
+		}
+		if ( Length( RealFight_Flat( drift ) ) > 16.0 )
+		{
+			dir = Normalize( RealFight_Flat( drift ) )
+			mag = 0.7
+		}
+		else if ( shuffling )
+		{
+			dir = shuffle
+			mag = 0.6
+		}
+		RealFight_Move( st, dir, st.bot.EyeAngles().y, mag, buttons )
+		wait RF_TICK
+		if ( !RealFight_Still( st ) )
+			return false
+		DodgeBot_Perceive( st, p )
+		if ( stopOnSight && Time() - start > 0.2 && RealFight_Sight( st ) )
+			return false
+	}
+	return true
+}
+
+// ---- Cover ----------------------------------------------------------------------
+
+float function RealFight_HealthFrac( DodgeState st )
+{
+	return float( st.bot.GetHealth() + st.bot.GetShieldHealth() ) / float( st.maxPool )
+}
+
+// Magazine left, 0-1; 1 for weapons without one.
+float function RealFight_ClipFrac( DodgeState st )
+{
+	entity weapon = st.bot.GetActiveWeapon( eActiveInventorySlot.mainHand )
+	if ( !IsValid( weapon ) || !weapon.UsesClipsForAmmo() )
+		return 1.0
+	int size = weapon.GetWeaponPrimaryClipCountMax()
+	if ( size <= 0 )
+		return 1.0
+	return float( weapon.GetWeaponPrimaryClipCount() ) / float( size )
+}
+
+bool function RealFight_WantsCover( DodgeState st, RealFightPrefs prefs )
+{
+	if ( prefs.cover == RF_COVER_OFF || Time() < RealFight_Memory( st.bot ).nextCoverAt || !RealFight_Sight( st ) )
+		return false
+	if ( st.wantReload )
+	{
+		// Careful players always duck away to reload; bold ones often keep
+		// strafing, more so when they are winning.
+		RealFightMemory mem = RealFight_Memory( st.bot )
+		float bold = mem.temper * 0.6
+		if ( RealFight_Advantage( st ) > 0.2 )
+			bold += 0.25
+		if ( !DodgeBot_Chance( bold ) )
+			return true
+		mem.nextCoverAt = Time() + RF_COVER_GAP   // decided once per reload
+		return false
+	}
+	if ( RealFight_HealthFrac( st ) < RF_HURT_FRAC && Time() - st.lastHurtTime < 3.0 )
+		return true
+	return prefs.cover == RF_COVER_OFTEN && Time() - st.lastHurtTime < 0.5 && DodgeBot_Chance( 0.35 )
+}
+
+// > 0: the bot is winning the trade.
+float function RealFight_Advantage( DodgeState st )
+{
+	float mine = RealFight_HealthFrac( st )
+	int pool = maxint( 1, st.owner.GetMaxHealth() + st.owner.GetShieldHealthMax() )
+	float yours = float( st.owner.GetHealth() + st.owner.GetShieldHealth() ) / float( pool )
+	return mine - yours
+}
+
+// Runs to cover and fights from it. false = there was no usable cover.
+bool function RealFight_TakeCover( DodgeState st, DodgeParams p, RealFightPrefs prefs, bool ambush = false )
+{
+	RealFightMemory mem = RealFight_Memory( st.bot )
+	mem.nextCoverAt = Time() + RF_COVER_GAP
+	RealFightCover cover = RealFight_FindCover( st )
+	if ( !cover.ok )
+	{
+		printt( format( "[REALFIGHT] %s: no cover nearby", st.bot.GetPlayerName() ) )
+		return false
+	}
+
+	float runDist = Distance2D( st.bot.GetOrigin(), cover.pos )
+	bool arrived = RealFight_RunTo( st, cover.pos, prefs.slide )
+	if ( !RealFight_Still( st ) )
+		return true
+	printt( format( "[REALFIGHT] %s cover run %.0f u arrived=%s peek=%s", st.bot.GetPlayerName(), runDist, string( arrived ), string( cover.hasPeek ) ) )
+	st.reactAt = -1.0
+	mem.nextCoverAt = Time() + RF_COVER_GAP
+	if ( !arrived )
+		return true
+
+	// Bold players peek once and come out; careful ones milk the corner.
+	int peeks = mem.temper > 0.65 ? RandomIntRangeInclusive( 0, 2 ) : RandomIntRangeInclusive( 1, 4 )
+	if ( RealFight_HealthFrac( st ) < RF_HURT_FRAC )
+		peeks++
+	if ( ambush )
+		peeks = 1
+	for ( int i = 0; i < peeks; i++ )
+	{
+		// Hide, top up the magazine, wait an uneven beat.
+		bool reload = RealFight_ClipFrac( st ) < 0.6
+		float rest = reload ? RandomFloatRange( 1.8, 2.8 ) : RandomFloatRange( 0.3, 1.3 )
+		// Now and then a long, nerve-testing wait.
+		if ( !reload && !ambush && DodgeBot_Chance( 0.15 ) )
+			rest += RandomFloatRange( 1.0, 2.0 )
+		if ( ambush && !reload )
+			rest = RandomFloatRange( 0.15, 0.9 )
+		if ( !RealFight_Hold( st, p, rest, true, reload ) )
+			break   // you came round the corner: fight
+
+		// Swing out with a slide-jump: bold players like it, and it is the whole
+		// point of an ambush.
+		float swingChance = DodgeBot_Tier( DodgeBot_GetLevel( st.owner ), 0.2, 0.35, 0.45 ) + mem.temper * 0.2
+		if ( ambush )
+			swingChance = 0.9
+		if ( RealFight_HealthFrac( st ) < RF_HURT_FRAC )
+			swingChance = swingChance * 0.5
+		if ( prefs.slide && DodgeBot_Chance( swingChance ) )
+		{
+			RealFightSwing swing = RealFight_FindSwing( st, st.bot.GetOrigin() )
+			if ( swing.ok )
+			{
+				RealFight_SwingOut( st, p, swing )
+				float fightUntil = Time() + RandomFloatRange( 0.4, 1.2 )
+				while ( Time() < fightUntil && RealFight_Still( st ) )
+				{
+					RealFight_FreeMove( st, p )
+					wait RF_TICK
+				}
+				if ( !RealFight_Still( st ) )
+					return true
+				// Winning or bold: stay out. Otherwise duck back behind.
+				if ( ambush || RealFight_Advantage( st ) > 0.0 || DodgeBot_Chance( mem.temper ) )
+					break
+				if ( !RealFight_RunTo( st, cover.pos, false ) || !RealFight_Still( st ) )
+					return true
+				continue
+			}
+		}
+		if ( !cover.hasPeek )
+			break
+
+		vector back = cover.pos
+		// Vary the side and the depth of every peek.
+		RealFight_FindPeek( cover, st.owner.EyePosition(), st.bot, [ st.bot, st.owner ] )
+		if ( DodgeBot_Chance( 0.3 ) )
+		{
+			// Fake peek: show a shoulder and pull straight back.
+			vector part = cover.pos + ( cover.peek - cover.pos ) * 0.7
+			RealFight_StepTo( st, p, part, 0.3 )
+		}
+		else
+		{
+			RealFight_StepTo( st, p, cover.peek, 0.6 )
+			if ( !RealFight_Still( st ) )
+				return true
+			// Moving while exposed; stays out if it is winning the peek.
+			float out = Time() + RandomFloatRange( 0.4, 1.0 )
+			while ( Time() < out && RealFight_Still( st ) )
+			{
+				RealFight_FreeMove( st, p )
+				wait RF_TICK
+			}
+			if ( RealFight_Still( st ) && RealFight_Advantage( st ) > 0.25 && DodgeBot_Chance( mem.temper ) )
+				break
+		}
+		if ( !RealFight_Still( st ) )
+			return true
+		RealFight_StepTo( st, p, back, 0.7 )
+		if ( !RealFight_Still( st ) )
+			return true
+		// The angle is gone: you moved and can see the spot now.
+		if ( RealFight_Sight( st ) )
+			break
+	}
+	st.anchor = st.bot.GetOrigin()
+	mem.nextCoverAt = Time() + RF_COVER_GAP
+	return true
+}
+
+// ---- Looking for you ------------------------------------------------------------
+
+// Lost sight: go to where it last saw you, round obstacles one step at a time.
+void function RealFight_Hunt( DodgeState st, DodgeParams p, RealFightPrefs prefs )
+{
+	RealFightMemory mem = RealFight_Memory( st.bot )
+	vector org = st.bot.GetOrigin()
+	vector goal = mem.seenPos == < 0, 0, 0 > ? st.owner.GetOrigin() : mem.seenPos
+	// A player keeps guessing; after a while it works out where you went.
+	if ( Distance2D( org, goal ) < 80.0 || Time() - mem.seenAt > 4.0 )
+		goal = st.owner.GetOrigin()
+
+	if ( prefs.slide && Time() >= mem.nextSlideAt && DodgeBot_Chance( 0.3 + mem.temper * 0.4 ) )
+	{
+		RealFightSwing swing = RealFight_FindSwing( st, org )
+		mem.nextSlideAt = Time() + 1.0
+		if ( swing.ok )
+		{
+			RealFight_SwingOut( st, p, swing )
+			return
+		}
+	}
+
+	float base = VectorToAngles( RealFight_Flat( goal - org ) ).y
+	float flip = DodgeBot_Chance( 0.5 ) ? 1.0 : -1.0
+	array<float> bends = [ 0.0, 35.0, -35.0, 70.0, -70.0, 110.0, -110.0 ]
+	float reach = min( max( Distance2D( org, goal ), 60.0 ), 220.0 )
+	foreach ( float bend in bends )
+	{
+		vector dir = AnglesToForward( < 0.0, DodgeBot_WrapYaw( base + bend * flip ), 0.0 > )
+		AimTrainerSpawnSpot spot = RealFight_Floor( org + dir * reach, org.z )
+		if ( !spot.ok || !RealFight_RunOk( org, spot.origin, st.bot ) )
+			continue
+		// Reload on the way when nobody is looking; sprint when it is far.
+		if ( RealFight_ClipFrac( st ) < 0.5 && !st.wantReload )
+			RealFight_Hold( st, p, 0.2, true, true )
+		if ( !RealFight_Still( st ) )
+			return
+		if ( reach > 180.0 && DodgeBot_Chance( 0.3 + mem.temper * 0.5 ) )
+			RealFight_RunTo( st, spot.origin, prefs.slide )
+		else
+			RealFight_StepTo( st, p, spot.origin, 1.0 )
+		if ( RealFight_Alive( st ) )
+			st.anchor = st.bot.GetOrigin()
+		return
+	}
+	// Boxed in: hold the angle for a moment.
+	mem.nextHuntAt = Time() + 1.0
+	RealFight_Hold( st, p, 0.4, true, false )
+}
+
+// ---- Free movement ----------------------------------------------------------------
+
+// Push, hold or back off: who is winning, the range, and its temper. Kept for a
+// while, like a player who has made up their mind.
+void function RealFight_UpdatePlan( DodgeState st )
+{
+	RealFightMemory mem = RealFight_Memory( st.bot )
+	if ( Time() < mem.planUntil )
+		return
+	float dist = Distance2D( st.bot.GetOrigin(), st.owner.GetOrigin() )
+	float score = RealFight_Advantage( st ) + ( mem.temper - 0.5 ) * 0.8 + RandomFloatRange( -0.25, 0.25 )
+	if ( dist > 700.0 )
+		score += 0.3
+	else if ( dist < 200.0 )
+		score -= 0.3
+	if ( st.wantReload )
+		score -= 0.4
+
+	int plan = RF_PLAN_HOLD
+	if ( score > 0.2 )
+		plan = RF_PLAN_PUSH
+	else if ( score < -0.25 )
+		plan = RF_PLAN_BACK
+	if ( plan != mem.plan )
+		printt( format( "[REALFIGHT] %s plan %d (temper %.2f score %.2f)", st.bot.GetPlayerName(), plan, mem.temper, score ) )
+	mem.plan = plan
+	mem.planUntil = Time() + RandomFloatRange( 1.2, 3.5 )
+}
+
+// How much a key direction (degrees right of the enemy; -1000 = no key) fits the plan.
+float function RealFight_KeyWeight( DodgeState st, RealFightMemory mem, float key )
+{
+	if ( key < -999.0 )
+		return mem.plan == RF_PLAN_HOLD ? 0.16 : 0.05
+	float a = fabs( key )
+	float w = 1.0                    // A or D
+	if ( a < 10.0 )                  // W
+		w = mem.plan == RF_PLAN_PUSH ? 0.4 : 0.02
+	else if ( a < 60.0 )             // W+A / W+D
+		w = mem.plan == RF_PLAN_PUSH ? 1.4 : ( mem.plan == RF_PLAN_HOLD ? 0.35 : 0.03 )
+	else if ( a > 170.0 )            // S
+		w = mem.plan == RF_PLAN_BACK ? 0.25 : 0.02
+	else if ( a > 120.0 )            // S+A / S+D
+		w = mem.plan == RF_PLAN_BACK ? 1.4 : ( mem.plan == RF_PLAN_HOLD ? 0.35 : 0.03 )
+
+	// Repeating a key happens, swapping sides is likelier.
+	if ( fabs( key - mem.keyYaw ) < 1.0 )
+		w = w * 0.35
+	else if ( key * mem.keyYaw < 0.0 )
+		w = w * 1.3
+	// Do not strafe into the crosshair that is about to catch it.
+	bool right = key > 0.0
+	if ( !st.onBody && a > 10.0 && a < 170.0 && right == ( st.crossSide == 1 ) && st.lastMiss < 120.0 )
+		w = w * 0.4
+	return w
+}
+
+// One keyboard move: pick a key direction, hold it for an uneven time, let go.
+void function RealFight_FreeMove( DodgeState st, DodgeParams p )
+{
+	entity bot = st.bot
+	RealFightMemory mem = RealFight_Memory( bot )
+	RealFight_UpdatePlan( st )
+	vector org = bot.GetOrigin()
+	vector toEnemy = RealFight_Flat( st.owner.GetOrigin() - org )
+	float dist = Length( toEnemy )
+	float base = VectorToAngles( toEnemy ).y
+
+	array<float> keys = [ 0.0, 45.0, -45.0, 90.0, -90.0, 135.0, -135.0, 180.0, -1000.0 ]
+	array<float> weights = []
+	float total = 0.0
+	foreach ( float option in keys )
+	{
+		float w = RealFight_KeyWeight( st, mem, option )
+		if ( option > -999.0 && w > 0.0 )
+		{
+			vector step = org + AnglesToForward( < 0.0, DodgeBot_WrapYaw( base - option ), 0.0 > ) * 60.0
+			if ( !RealFight_RunOk( org, step, bot ) )
+				w = 0.0
+		}
+		weights.append( w )
+		total += w
+	}
+	float roll = RandomFloatRange( 0.0, total )
+	float key = -1000.0
+	for ( int i = 0; i < keys.len(); i++ )
+	{
+		roll -= weights[ i ]
+		if ( roll <= 0.0 && weights[ i ] > 0.0 )
+		{
+			key = keys[ i ]
+			break
+		}
+	}
+
+	// Taps, ordinary strafes and long ones, never an even beat.
+	float duration = RandomFloatRange( 0.22, 0.5 )
+	float lengthRoll = RandomFloatRange( 0.0, 1.0 )
+	if ( lengthRoll < 0.22 )
+		duration = RandomFloatRange( 0.1, 0.2 )
+	else if ( lengthRoll > 0.7 )
+		duration = RandomFloatRange( 0.5, 1.1 )
+	bool still = key < -999.0
+	if ( still )
+		duration = RandomFloatRange( 0.1, 0.3 )
+	else
+		mem.keyYaw = key
+	if ( key > 1.0 && key < 179.0 )
+		st.side = 1
+	else if ( key < -1.0 && !still )
+		st.side = 0
+
+	// Up close, a hop now and then.
+	bool hop = !still && dist < 280.0 && bot.IsOnGround() && DodgeBot_Chance( 0.1 )
+	float start = Time()
+	float reactAfter = duration < 0.2 ? 99.0 : 0.14
+	vector checkPos = org
+	vector tickPos = org
+	float tickTime = start
+	float checkAt = start + 0.2
+	while ( Time() - start < duration )
+	{
+		DodgeBot_BotAim( st )
+		vector dir = < 0, 0, 0 >
+		float mag = 0.0
+		if ( !still )
+		{
+			float yaw = VectorToAngles( RealFight_Flat( st.owner.GetOrigin() - bot.GetOrigin() ) ).y - key
+			dir = AnglesToForward( < 0.0, DodgeBot_WrapYaw( yaw ), 0.0 > )
+			mag = DodgeBot_BotInputMag( st )
+		}
+		int buttons = DodgeBot_BotButtons( st )
+		if ( hop && Time() - start < 0.1 )
+			buttons = buttons | IN_JUMP
+		RealFight_Move( st, dir, bot.EyeAngles().y, mag, buttons )
+		wait RF_TICK
+		if ( !RealFight_Still( st ) )
+			return
+		if ( !still )
+			DodgeBot_RecordSample( st, Distance2D( bot.GetOrigin(), tickPos ), Time() - tickTime )
+		tickPos = bot.GetOrigin()
+		tickTime = Time()
+
+		DodgeBot_Perceive( st, p )
+		if ( Time() - start >= reactAfter && DodgeBot_ReactionDue( st ) )
+		{
+			st.reactAt = -1.0
+			break
+		}
+		if ( !still && Time() >= checkAt )
+		{
+			if ( Distance2D( bot.GetOrigin(), checkPos ) < 6.0 )
+				break   // against a wall
+			checkPos = bot.GetOrigin()
+			checkAt = Time() + 0.2
+		}
+	}
+	st.anchor = bot.GetOrigin()
+}
+
+// ---- Decisions ------------------------------------------------------------------
+
+// One decision of the brain. Always spends time (every path waits).
+void function RealFight_Think( DodgeState st, DodgeParams p )
+{
+	entity bot = st.bot
+	entity owner = st.owner
+	RealFightPrefs prefs = RealFight_Prefs( owner )
+	RealFightMemory mem = RealFight_Memory( bot )
+	DodgeBot_Perceive( st, p )
+
+	if ( RealFight_WantsCover( st, prefs ) && RealFight_TakeCover( st, p, prefs ) )
+	{
+		// A refused run may not have waited at all.
+		wait RF_TICK
+		return
+	}
+
+	// Slips out of sight on purpose, to come out fast when you do not expect it.
+	if ( prefs.slide && prefs.cover != RF_COVER_OFF && Time() >= mem.nextAmbushAt && RealFight_Sight( st ) && bot.IsOnGround() )
+	{
+		float want = DodgeBot_Tier( DodgeBot_GetLevel( owner ), 0.3, 0.45, 0.6 )
+		mem.nextAmbushAt = Time() + RandomFloatRange( 1.5, 3.0 )
+		if ( DodgeBot_Chance( want ) && RealFight_TakeCover( st, p, prefs, true ) )
+		{
+			mem.nextAmbushAt = Time() + RandomFloatRange( 4.0, 9.0 )
+			wait RF_TICK
+			return
+		}
+	}
+
+	if ( !RealFight_Sight( st ) && Time() - mem.seenAt > RF_LOST_AFTER )
+	{
+		if ( Time() >= mem.nextHuntAt )
+			RealFight_Hunt( st, p, prefs )
+		else
+			RealFight_Hold( st, p, 0.3, true, false )
+		wait RF_TICK
+		return
+	}
+
+	if ( prefs.slide && Time() >= mem.nextSlideAt && bot.IsOnGround() )
+	{
+		int level = DodgeBot_GetLevel( owner )
+		float chance = DodgeBot_Tier( level, 0.15, 0.28, 0.4 )
+		// Committing to a push or a retreat is when players slide.
+		RealFight_UpdatePlan( st )
+		if ( mem.plan != RF_PLAN_HOLD )
+			chance = chance * 1.4
+		mem.nextSlideAt = Time() + 0.6
+		if ( DodgeBot_Chance( chance ) && RealFight_SlideJump( st, p ) )
+		{
+			mem.nextSlideAt = Time() + RF_SLIDE_GAP
+			wait RF_TICK
+			return
+		}
+	}
+
+	// Mostly free keyboard movement; the bait combos stay as a trick.
+	float dist = Distance2D( bot.GetOrigin(), owner.GetOrigin() )
+	if ( mem.plan == RF_PLAN_HOLD && DodgeBot_Chance( 0.2 ) )
+		DodgeBot_FightLeg( st, p, dist )
+	else
+		RealFight_FreeMove( st, p )
+	wait RF_TICK
+}
+#endif

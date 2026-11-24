@@ -1,0 +1,2167 @@
+// DodgeBot: a human-like dodge brain for Lab > Targets strafers.
+//
+// The stock strafe brains are open-loop: they roll random legs and never look
+// at the player. This brain closes the loop. Every 0.05 s it reads what a real
+// opponent would read off you:
+//   - where your crosshair is relative to its body, and whether it is closing in
+//   - shots you fire that pass near it (server weapon-attack callback)
+//   - damage it takes
+// and answers after a human reaction delay with what Apex players actually do:
+// strafe combos built from short taps and long commits (long strafe, short ->
+// long, short-short -> long bait, ADAD -> commit, long -> long swing), a hurt
+// retreat, and range control around where it spawned. It never crouches: real
+// players do not crouch-strafe in a gunfight, so the Lab crouch row is ignored.
+//
+// It takes over any strafer the stock Lab spawns (Add Strafer, the strafer
+// challenge, manual slots), dummy or legend body. A legend body is driven like a
+// human (stick input + view angles) and shoots back on DodgeBot's own fire and
+// aim settings, whatever the Lab target preset is. Lab speed slider, strafing
+// off, god mode and armor still apply.
+//
+// Console (per player): dodgebot          -> show level
+//                       dodgebot 0        -> off, stock brain back
+//                       dodgebot 1|2|3    -> casual | ranked | pro
+//                       dodgebot speed unarmed|hipfire|ads|off|<50-400>
+//                         -> 199 | 173 | 130 u/s | Lab slider | custom
+//                       dodgebot respawn on|off|<min m> <max m>
+//                         -> after a kill, respawn 10-17 m around you, any direction
+//                       dodgebot fire on|off      -> legend bots shoot back (default on)
+//                       dodgebot ads off|auto|on  -> legend bots aim down sights (default auto)
+//                       dodgebot aim <0-100>      -> legend bot aim (default 50)
+
+global function CodeCallback_Trainer_DodgeBot_ModInit
+// Shared with sv_realfight.gnut (the separate "real fight" brain).
+global function DodgeBot_Chance
+global function DodgeBot_WrapYaw
+global function DodgeBot_GetLevel
+global function DodgeBot_Tier
+global function DodgeBot_Perceive
+global function DodgeBot_ReactionDue
+global function DodgeBot_React
+global function DodgeBot_FightLeg
+global function DodgeBot_NeutralLeg
+global function DodgeBot_BotAim
+global function DodgeBot_BotButtons
+global function DodgeBot_SideSign
+global function DodgeBot_GetAim
+global function DodgeBot_RecordSample
+global function DodgeBot_BotInputMag
+
+#if SERVER
+const float DODGE_TICK = 0.05
+const float DODGE_SCAN_INTERVAL = 0.1
+// A leg cannot be cut before this; shorter flips read as animation hitching.
+const float DODGE_MIN_LEG_BEFORE_REACT = 0.12
+const float DODGE_STUCK_DIST_SQR = 36.0       // < 6u per 0.1 s = against a wall
+const int DODGE_STUCK_CHECKS_NEEDED = 2
+const float DODGE_LEASH = 320.0               // max wander from the spawn spot
+const float DODGE_CHEST = 48.0
+const float DODGE_SHOT_NEAR = 80.0            // a round passing within this is "shot at"
+const float DODGE_SHOT_MEMORY = 0.15
+const float DODGE_HURT_MEMORY = 0.15
+const float DODGE_ENGAGED_HOLD = 1.6          // stays in fight mode this long after a threat
+const float DODGE_CLOSING_SPEED = 60.0        // crosshair closing faster than this = being tracked
+const float DODGE_FACE_EPS = 6.0
+const float DODGE_RANGE_YAW = 28.0            // yaw bend that turns a strafe into a diagonal
+const float DODGE_CLOSE_RANGE = 350.0
+const float DODGE_FAR_RANGE = 1500.0
+const int DODGE_DEFAULT_LEVEL = 2
+// Speed presets (units/s): Apex move speed by what the player holds.
+const float DODGE_SPEED_UNARMED = 199.0
+const float DODGE_SPEED_HIPFIRE = 173.0
+const float DODGE_SPEED_ADS = 130.0
+const float DODGE_SPEED_MIN = 50.0
+const float DODGE_SPEED_MAX = 400.0
+const float DODGE_NAT_SPEED_GUESS = 250.0     // until the first leg is measured
+const float DODGE_PRESET_MIN_FACTOR = 0.9     // acceleration feel: 90-100% of the preset
+const float DODGE_MEASURE_SKIP = 0.15         // ignore the anim blend-in
+const float DODGE_MEASURE_MIN = 0.15
+// Respawn ring: after a kill the next target appears somewhere around the
+// player, any direction, to train finding it. 1 unit = 1 inch.
+const float DODGE_UNITS_PER_METER = 39.37
+const float DODGE_RESPAWN_MIN_M = 10.0
+const float DODGE_RESPAWN_MAX_M = 17.0
+const float DODGE_RESPAWN_LIMIT_MIN_M = 3.0
+const float DODGE_RESPAWN_LIMIT_MAX_M = 60.0
+const int DODGE_RESPAWN_TRIES = 40
+const float DODGE_RESPAWN_MAX_DZ = 200.0       // keep it near the player's floor height
+// The Lab respawns a killed strafer 0.2 s later at the owner's fixed spawn when
+// one is set; the ring spot is parked there this long, then the owner's own
+// fixed-spawn setting is put back.
+const float DODGE_RESPAWN_HOLD = 0.8
+// Legend bots: real fake-players driven like a human, by stick input
+// (BotCmd_SetMove) and view angles (BotCmd_SetLook) every tick.
+const string DODGE_LEGEND_PREFIX = "R5F-"
+const float DODGE_DEG = 0.0174533              // degrees -> radians
+// Bot aim, mapped from the Lab "bot aim" slider (0 = worst, 100 = best):
+const float DODGE_AIM_ERR_WORST_DEG = 6.0      // wandering aim error
+const float DODGE_AIM_ERR_BEST_DEG = 0.4
+const float DODGE_AIM_LAG_WORST = 0.22         // tracking lag time constant (s)
+const float DODGE_AIM_LAG_BEST = 0.06
+const float DODGE_BOT_SIGN_CHECK_AT = 0.15     // side-input sign check, into a leg
+const float DODGE_BOT_SIGN_MIN_SPEED = 60.0
+const int DODGE_BOT_SIGN_FLIP_AFTER = 4
+// Legend bot shooting, DodgeBot's own (independent of the Lab target preset).
+const int DODGE_DEFAULT_AIM = 50
+const float DODGE_FIRE_THINK = 0.1
+// Legend bot aim-down-sights stance.
+const int DODGE_ADS_OFF = 0                    // always hipfire
+const int DODGE_ADS_AUTO = 1                   // ADS beyond 10 m, hipfire inside
+const int DODGE_ADS_ON = 2                     // always ADS
+const float DODGE_ADS_DIST = 393.7             // auto: ADS beyond this (10 m), hipfire inside
+const float DODGE_ADS_MIN_HOLD = 0.6           // no flicker between stances
+const float DODGE_ZOOM_GIVE_UP = 1.2           // not zoomed after this: try the other button
+const float DODGE_ZOOM_TOGGLE_GAP = 0.7
+const float DODGE_FIRE_CONE_DOT = 0.985        // crosshair within ~10 deg of you
+const float DODGE_FIRE_REACT_MIN = 0.18        // beat before opening up on sight
+const float DODGE_FIRE_REACT_MAX = 0.32
+const float DODGE_RELOAD_SETTLE_MIN = 0.15
+const float DODGE_RELOAD_SETTLE_MAX = 0.4
+const float DODGE_FIRE_PROFILE_REFRESH = 1.0
+const float DODGE_BURST_GAP = 0.25
+const int DODGE_BOTFIRE_HOLD = 0               // native fire profile modes
+const int DODGE_BOTFIRE_TAP = 1
+const int DODGE_BOTFIRE_BURST = 2
+const float DODGE_STATS_WINDOW = 4.0          // readout covers the last N seconds
+const float DODGE_STATS_PEAK = 0.3            // "fastest stretch" length
+
+const int DODGE_LEG_DONE = 0
+const int DODGE_LEG_REACT = 1
+const int DODGE_LEG_STUCK = 2
+
+const int DODGE_MOVE_SIDE = 0
+const int DODGE_MOVE_DEPTH = 1
+const int DODGE_MOVE_STAND = 2
+
+// Strafe combos. Every one ends on a commit leg toward the chosen side.
+const int DODGE_COMBO_LONG = 0      // one long strafe
+const int DODGE_COMBO_SL = 1        // short tap the wrong way, long the other
+const int DODGE_COMBO_SSL = 2       // short, short back, long: the classic bait
+const int DODGE_COMBO_ADAD = 3      // 2-4 alternating taps, then a commit
+const int DODGE_COMBO_LRL = 4       // long one way, long the other: wide swing
+const int DODGE_COMBO_STOP = 5      // brief stop, then a long strafe
+const int DODGE_COMBO_COUNT = 6
+
+// Short taps run to the end: a bait that reacts halfway is not a bait.
+const float DODGE_NO_REACT = 99.0
+// A long commit is re-read after this, like a player checking their opponent.
+const float DODGE_LONG_REACT_AFTER = 0.35
+
+global struct DodgeParams
+{
+	float reactMin
+	float reactMax
+	float jukeChance      // commit away from the current side when reacting
+	float shortMin        // tap
+	float shortMax
+	float legMin          // medium leg
+	float legMax
+	float longMin         // commit
+	float longMax
+	float aimRadius       // crosshair this close to the chest = on body
+	array<float> reactWeights   // per DODGE_COMBO_*, when a reaction fires
+	array<float> fightWeights   // per DODGE_COMBO_*, mid fight without a fresh read
+}
+
+global struct DodgeState
+{
+	entity bot
+	entity owner
+	bool isBot = false              // legend bot (fake player) instead of a dummy NPC
+	float bend = 0.0                // bot: diagonal bend of the current leg, degrees
+	vector aimPoint = <0, 0, 0>     // bot: where its crosshair currently rests
+	vector aimNoise = <0, 0, 0>
+	float lastAimTime = 0.0
+	bool profileDirty = true        // bot: re-send the fire profile
+	// bot: the stick command carries the whole button mask, so the attack
+	// button rides along with it every tick (a separate trigger gets overwritten).
+	bool trigger = false
+	int fireMode = 0                // DODGE_BOTFIRE_*
+	float fireInterval = 0.2
+	float nextPulse = 0.0
+	bool pulseDown = false
+	bool wantReload = false
+	float lastFireLog = -99.0
+	// bot: aim-down-sights stance
+	bool wantAds = false
+	bool running = false            // real fight: sprinting, no sights and no shooting
+	float wantAdsSince = -99.0
+	float zoomMissingSince = -1.0
+	float lastZoomToggle = -99.0
+	vector anchor
+	float prefDist = 600.0
+	int side = 1                    // 0 left, 1 right (bot-relative)
+	int lastCombo = -1
+
+	float lastPerceive = 0.0
+	float lastMiss = 9999.0
+	float missRate = 0.0            // + = crosshair closing in (u/s)
+	int crossSide = 1               // which side of the bot the crosshair sits on
+	bool onBody = false
+
+	float lastShotTime = -99.0
+	float lastShotMiss = 9999.0
+	int lastPool = 0
+	int maxPool = 1
+	float lastHurtTime = -99.0
+
+	float reactAt = -1.0            // pending reaction fires at this time
+	float engagedUntil = -1.0
+	array<float> legHistory
+
+	// Speed readout: one entry per tick of a moving leg.
+	array<float> sampleAt
+	array<float> sampleDist
+	array<float> sampleDt
+}
+
+struct DodgeRespawnPrefs
+{
+	bool on = true
+	float minM = DODGE_RESPAWN_MIN_M
+	float maxM = DODGE_RESPAWN_MAX_M
+	int token = 0              // newest arming wins the restore
+	bool armed = false
+	bool savedFixed = false    // owner's own fixed-spawn setting while armed
+	vector savedPos = <0, 0, 0>
+}
+
+struct DodgeSpeedStats
+{
+	float average = 0.0   // average moving speed over the window
+	float peak = 0.0      // fastest short stretch
+}
+
+struct
+{
+	table< entity, DodgeState > states
+	table< entity, int > levels
+	table< entity, float > speedTargets   // 0 = off, follow the Lab speed slider
+	table< entity, DodgeRespawnPrefs > respawn
+	table< entity, bool > fireOn          // legend bots shoot back (default on)
+	table< entity, int > aim              // legend bot aim 0-100
+	table< entity, int > ads              // DODGE_ADS_*
+	bool zoomByToggle = false             // holding the zoom button did not zoom
+	int zoomSwaps = 0
+	table< entity, bool > deathWatched
+	float botSideSign = 1.0               // flips if +side turns out to move left
+	int botSignMismatch = 0
+	float natAds = 0.0                    // same while holding ADS (zoomed or not), learned
+	float natBot = 0.0                    // legend bot full-input strafe speed, learned
+	float natSide = 0.0                   // learned u/s at playback rate 1.0
+	float natDepth = 0.0
+	int defaultLevel = DODGE_DEFAULT_LEVEL
+	bool scanning = false
+	bool masterOn = true                  // Lab > MOD row; mirrors the CafeMod slot
+} file
+
+// mod.vdf id "Trainer_DodgeBot", lowercased: the id the MOD row sends.
+const string DODGE_CAFEMOD_ID = "trainer_dodgebot"
+#endif
+
+void function CodeCallback_Trainer_DodgeBot_ModInit()
+{
+	#if SERVER
+		RegisterSignal( "DodgeBot_Stop" )
+		file.defaultLevel = maxint( 0, minint( 3, GetCurrentPlaylistVarInt( "dodgebot_default_level", DODGE_DEFAULT_LEVEL ) ) )
+		// Commands are case-sensitive; accept the common spellings.
+		AddClientCommandCallback( "dodgebot", DodgeBot_Cmd )
+		AddClientCommandCallback( "DODGEBOT", DodgeBot_Cmd )
+		AddClientCommandCallback( "DodgeBot", DodgeBot_Cmd )
+		AddCallback_OnWeaponAttack( DodgeBot_OnWeaponAttack )
+		AddCallback_OnClientDisconnected( DodgeBot_OnClientDisconnected )
+		AddCallback_EntitiesDidLoad( DodgeBot_EntitiesDidLoad )
+		RealFight_Init()
+		DodgeBot_RegisterModRow()
+		printt( format( "[DODGEBOT] server ModInit, default level %d", file.defaultLevel ) )
+	#endif
+}
+
+#if SERVER
+// ---- Lab > MOD row --------------------------------------------------------------
+// The MOD tab lists every scripted mod as a CafeMod slot, numbered on the CLIENT
+// from its own mod list: slots start after the built-ins, one per enabled mod
+// with scripts, in load order; server-realm mods are disabled on the client and
+// get no slot. The server never sends those numbers, so the slot is pinned here
+// to the index the client will compute, then registered so the toggle works.
+int function DodgeBot_ClientSlotIndex()
+{
+	int idx = CafeMod_GetCount()
+	foreach ( InstalledMod mod in ModList_Get() )
+	{
+		if ( idx >= CAFEMOD_MAX )
+			return -1
+		if ( mod.id.tolower() == DODGE_CAFEMOD_ID )
+			return idx
+		if ( !mod.enabled || !mod.hasScripts || mod.realm.tolower() == "server" )
+			continue
+		idx++
+	}
+	return -1
+}
+
+void function DodgeBot_RegisterModRow()
+{
+	int idx = DodgeBot_ClientSlotIndex()
+	if ( idx < 0 )
+	{
+		printt( "[DODGEBOT] MOD row: own entry not in the mod list, console only" )
+		return
+	}
+	CafeMod_DefineDynamic( idx, DODGE_CAFEMOD_ID, "DodgeBot" )
+	CafeMod_RegisterPackage( DODGE_CAFEMOD_ID, "DodgeBot", DodgeBot_OnModEnable, DodgeBot_OnModDisable, true )
+	printt( format( "[DODGEBOT] MOD row pinned to slot %d", idx ) )
+}
+
+void function DodgeBot_OnModEnable()
+{
+	file.masterOn = true
+	printt( "[DODGEBOT] MOD row ON" )
+}
+
+// Off: every strafer goes back to the stock brain, for every player.
+void function DodgeBot_OnModDisable()
+{
+	file.masterOn = false
+	array<entity> bots = []
+	foreach ( entity bot, DodgeState st in file.states )
+	{
+		if ( IsValid( bot ) )
+			bots.append( bot )
+	}
+	foreach ( entity bot in bots )
+		DodgeBot_HandBack( bot )
+	printt( "[DODGEBOT] MOD row OFF" )
+}
+
+void function DodgeBot_HandBack( entity bot )
+{
+	if ( !( bot in file.states ) )
+		return
+	entity owner = file.states[ bot ].owner
+	bool isBot = file.states[ bot ].isBot
+	bot.Signal( "DodgeBot_Stop" )
+	if ( !IsAlive( bot ) || !IsValid( owner ) )
+		return
+	if ( isBot )
+	{
+		// Shooting goes back to the Lab's own fire setting.
+		LegendBot_SetFireFor( bot, owner.p.aimTrainerStraferFire )
+		LegendBot_StartStrafe( owner, bot, owner.p.aimTrainerStraferHard )
+	}
+	else
+		FlowstateDummy_SetHard( bot, owner, owner.p.aimTrainerStraferHard )
+}
+
+// ---- Levels -----------------------------------------------------------------
+
+DodgeParams function DodgeBot_Params( int level )
+{
+	// Casual: slow to notice, mostly plain long strafes, little baiting.
+	// Ranked: average reaction, a mix of long strafes and simple baits.
+	// Pro: fast reads, bait combos (short-short -> long) are its main tool.
+	int i = maxint( 1, minint( 3, level ) )
+	DodgeParams p
+	//                            casual ranked  pro
+	p.reactMin   = DodgeBot_Tier( i, 0.32, 0.22, 0.16 )
+	p.reactMax   = DodgeBot_Tier( i, 0.48, 0.32, 0.24 )
+	p.jukeChance = DodgeBot_Tier( i, 0.45, 0.65, 0.80 )
+	p.shortMin   = DodgeBot_Tier( i, 0.18, 0.15, 0.13 )
+	p.shortMax   = DodgeBot_Tier( i, 0.26, 0.22, 0.19 )
+	p.legMin     = DodgeBot_Tier( i, 0.30, 0.25, 0.22 )
+	p.legMax     = DodgeBot_Tier( i, 0.50, 0.42, 0.38 )
+	p.longMin    = DodgeBot_Tier( i, 0.70, 0.60, 0.55 )
+	p.longMax    = DodgeBot_Tier( i, 1.20, 1.10, 1.00 )
+	p.aimRadius  = DodgeBot_Tier( i, 22.0, 26.0, 30.0 )
+
+	// Combo weights, in DODGE_COMBO_* order: LONG, SL, SSL, ADAD, LRL, STOP.
+	if ( i == 1 )
+	{
+		p.reactWeights = [ 0.45, 0.25, 0.05, 0.15, 0.10, 0.00 ]
+		p.fightWeights = [ 0.45, 0.15, 0.05, 0.15, 0.10, 0.10 ]
+	}
+	else if ( i == 2 )
+	{
+		p.reactWeights = [ 0.30, 0.25, 0.20, 0.15, 0.10, 0.00 ]
+		p.fightWeights = [ 0.35, 0.20, 0.15, 0.15, 0.08, 0.07 ]
+	}
+	else
+	{
+		p.reactWeights = [ 0.20, 0.25, 0.30, 0.15, 0.10, 0.00 ]
+		p.fightWeights = [ 0.25, 0.20, 0.25, 0.15, 0.10, 0.05 ]
+	}
+	return p
+}
+
+float function DodgeBot_Tier( int level, float casual, float ranked, float pro )
+{
+	if ( level <= 1 )
+		return casual
+	if ( level == 2 )
+		return ranked
+	return pro
+}
+
+int function DodgeBot_GetLevel( entity owner )
+{
+	if ( !file.masterOn )
+		return 0
+	if ( owner in file.levels )
+		return file.levels[ owner ]
+	return file.defaultLevel
+}
+
+string function DodgeBot_LevelName( int level )
+{
+	switch ( level )
+	{
+		case 0: return "关闭"
+		case 1: return "休闲"
+		case 2: return "排位"
+		case 3: return "职业"
+	}
+	return string( level )
+}
+
+bool function DodgeBot_Chance( float p )
+{
+	return RandomFloatRange( 0.0, 1.0 ) < p
+}
+
+// ---- Console ----------------------------------------------------------------
+
+void function DodgeBot_Cmd( entity player, array<string> args )
+{
+	if ( !IsValid( player ) || !player.IsPlayer() )
+		return
+
+	int level = DodgeBot_GetLevel( player )
+	if ( args.len() >= 1 && args[0].tolower() == "speed" )
+	{
+		DodgeBot_SpeedCmd( player, args )
+		return
+	}
+	if ( args.len() >= 1 && args[0].tolower() == "respawn" )
+	{
+		DodgeBot_RespawnCmd( player, args )
+		return
+	}
+	if ( args.len() >= 1 && args[0].tolower() == "fire" )
+	{
+		DodgeBot_FireCmd( player, args )
+		return
+	}
+	if ( args.len() >= 1 && args[0].tolower() == "aim" )
+	{
+		DodgeBot_AimCmd( player, args )
+		return
+	}
+	if ( args.len() >= 1 && args[0].tolower() == "ads" )
+	{
+		DodgeBot_AdsCmd( player, args )
+		return
+	}
+	if ( args.len() >= 1 )
+	{
+		string a = args[0].tolower()
+		if ( a == "off" )
+			level = 0
+		else if ( a == "on" )
+			level = maxint( 1, file.defaultLevel )
+		else if ( a == "0" || a == "1" || a == "2" || a == "3" )
+			level = a.tointeger()
+		else
+		{
+			SendHudMessage( player, "用法: dodgebot 0(关) / 1(休闲) / 2(排位) / 3(职业)\ndodgebot speed unarmed / hipfire / ads / off / <数值>\ndodgebot respawn on / off / <最小米数> <最大米数>\ndodgebot fire on / off（传奇靶子还手）\ndodgebot aim <0-100>（传奇靶子枪法）\ndodgebot ads off / auto / on（传奇靶子开镜）", -1, 0.3, 255, 200, 120, 255, 0.1, 6.0, 0.5 )
+			return
+		}
+		DodgeBot_SetLevel( player, level )
+	}
+
+	DodgeBot_ShowStatus( player )
+}
+
+// dodgebot speed [unarmed|hipfire|ads|off|<50-400>]
+void function DodgeBot_SpeedCmd( entity player, array<string> args )
+{
+	if ( args.len() >= 2 )
+	{
+		string a = args[1].tolower()
+		float target = -1.0
+		if ( a == "unarmed" || a == "fist" || a == "199" )
+			target = DODGE_SPEED_UNARMED
+		else if ( a == "hipfire" || a == "hip" || a == "173" )
+			target = DODGE_SPEED_HIPFIRE
+		else if ( a == "ads" || a == "130" )
+			target = DODGE_SPEED_ADS
+		else if ( a == "off" || a == "0" )
+			target = 0.0
+		else if ( DodgeBot_IsDigits( a ) )
+			target = float( a.tointeger() )
+
+		if ( target != 0.0 && ( target < DODGE_SPEED_MIN || target > DODGE_SPEED_MAX ) )
+		{
+			SendHudMessage( player, format( "速度挡位: unarmed(199) / hipfire(173) / ads(130) / off，或 %.0f-%.0f 之间的数值", DODGE_SPEED_MIN, DODGE_SPEED_MAX ), -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
+			return
+		}
+		file.speedTargets[ player ] <- target
+	}
+	DodgeBot_ShowStatus( player )
+}
+
+// dodgebot respawn [on|off|<min m> <max m>]
+void function DodgeBot_RespawnCmd( entity player, array<string> args )
+{
+	DodgeRespawnPrefs prefs = DodgeBot_RespawnPrefs( player )
+	if ( args.len() >= 2 )
+	{
+		string a = args[1].tolower()
+		if ( a == "on" || a == "1" )
+		{
+			prefs.on = true
+		}
+		else if ( a == "off" || a == "0" )
+		{
+			prefs.on = false
+			DodgeBot_RestoreSpawn( player, -1 )
+		}
+		else if ( args.len() >= 3 && DodgeBot_IsDigits( a ) && DodgeBot_IsDigits( args[2] ) )
+		{
+			float lo = float( a.tointeger() )
+			float hi = float( args[2].tointeger() )
+			if ( lo > hi )
+			{
+				float t = lo
+				lo = hi
+				hi = t
+			}
+			if ( lo < DODGE_RESPAWN_LIMIT_MIN_M || hi > DODGE_RESPAWN_LIMIT_MAX_M )
+			{
+				SendHudMessage( player, format( "刷新距离要在 %.0f-%.0f 米之间，例如: dodgebot respawn 10 17", DODGE_RESPAWN_LIMIT_MIN_M, DODGE_RESPAWN_LIMIT_MAX_M ), -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
+				return
+			}
+			prefs.minM = lo
+			prefs.maxM = hi
+			prefs.on = true
+		}
+		else
+		{
+			SendHudMessage( player, "用法: dodgebot respawn on / off / <最小米数> <最大米数>", -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
+			return
+		}
+	}
+	DodgeBot_ShowStatus( player )
+}
+
+// dodgebot fire [on|off]: legend bots shoot back. DodgeBot's own switch; the
+// Lab target preset and its fire row do not matter while DodgeBot drives.
+void function DodgeBot_FireCmd( entity player, array<string> args )
+{
+	if ( args.len() >= 2 )
+	{
+		string a = args[1].tolower()
+		if ( a == "on" || a == "1" )
+			file.fireOn[ player ] <- true
+		else if ( a == "off" || a == "0" )
+			file.fireOn[ player ] <- false
+		else
+		{
+			SendHudMessage( player, "用法: dodgebot fire on / off", -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
+			return
+		}
+	}
+	else
+	{
+		file.fireOn[ player ] <- !DodgeBot_GetFire( player )
+	}
+	DodgeBot_ShowStatus( player )
+}
+
+// dodgebot aim <0-100>: legend bot aim, 0 = sprays and trails, 100 = locked on.
+void function DodgeBot_AimCmd( entity player, array<string> args )
+{
+	if ( args.len() >= 2 )
+	{
+		if ( !DodgeBot_IsDigits( args[1] ) || args[1].tointeger() > 100 )
+		{
+			SendHudMessage( player, "用法: dodgebot aim <0-100>（0 最差，100 最准）", -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
+			return
+		}
+		file.aim[ player ] <- args[1].tointeger()
+	}
+	DodgeBot_ShowStatus( player )
+}
+
+// dodgebot ads off|auto|on: whether legend bots really aim down sights.
+void function DodgeBot_AdsCmd( entity player, array<string> args )
+{
+	if ( args.len() >= 2 )
+	{
+		string a = args[1].tolower()
+		if ( a == "off" || a == "0" )
+			file.ads[ player ] <- DODGE_ADS_OFF
+		else if ( a == "auto" || a == "1" )
+			file.ads[ player ] <- DODGE_ADS_AUTO
+		else if ( a == "on" || a == "2" )
+			file.ads[ player ] <- DODGE_ADS_ON
+		else
+		{
+			SendHudMessage( player, "用法: dodgebot ads off(腰射) / auto(自动) / on(一直开镜)", -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
+			return
+		}
+	}
+	DodgeBot_ShowStatus( player )
+}
+
+int function DodgeBot_GetAds( entity owner )
+{
+	if ( owner in file.ads )
+		return file.ads[ owner ]
+	return DODGE_ADS_AUTO
+}
+
+string function DodgeBot_AdsName( int ads )
+{
+	if ( ads == DODGE_ADS_OFF )
+		return "腰射"
+	if ( ads == DODGE_ADS_ON )
+		return "一直开镜"
+	return "自动开镜"
+}
+
+bool function DodgeBot_GetFire( entity owner )
+{
+	if ( owner in file.fireOn )
+		return file.fireOn[ owner ]
+	return true
+}
+
+int function DodgeBot_GetAim( entity owner )
+{
+	if ( owner in file.aim )
+		return file.aim[ owner ]
+	return DODGE_DEFAULT_AIM
+}
+
+string function DodgeBot_RespawnName( entity player )
+{
+	DodgeRespawnPrefs prefs = DodgeBot_RespawnPrefs( player )
+	if ( !prefs.on )
+		return "原版（准星前方）"
+	return format( "周围 %.0f-%.0f 米随机", prefs.minM, prefs.maxM )
+}
+
+bool function DodgeBot_IsDigits( string s )
+{
+	if ( s.len() < 1 || s.len() > 4 )
+		return false
+	for ( int i = 0; i < s.len(); i++ )
+	{
+		string ch = s.slice( i, i + 1 )
+		if ( ch < "0" || ch > "9" )
+			return false
+	}
+	return true
+}
+
+string function DodgeBot_SpeedName( float target )
+{
+	if ( target <= 0.0 )
+		return "跟随 Lab 速度滑块"
+	if ( target == DODGE_SPEED_UNARMED )
+		return "空手 199"
+	if ( target == DODGE_SPEED_HIPFIRE )
+		return "持枪腰射 173"
+	if ( target == DODGE_SPEED_ADS )
+		return "开镜 130"
+	return format( "自定义 %.0f", target )
+}
+
+// Level, speed preset, and what the owner's bots really did over the last
+// DODGE_STATS_WINDOW seconds, averaged over their bots (peak = the fastest bot).
+void function DodgeBot_ShowStatus( entity player )
+{
+	int level = DodgeBot_GetLevel( player )
+	float target = DodgeBot_GetSpeedTarget( player )
+
+	float avgSum = 0.0
+	int avgN = 0
+	float peak = 0.0
+	foreach ( entity bot, DodgeState st in file.states )
+	{
+		if ( st.owner != player )
+			continue
+		DodgeSpeedStats s = DodgeBot_GetStats( st )
+		if ( s.average > 0.0 )
+		{
+			avgSum += s.average
+			avgN++
+		}
+		peak = max( peak, s.peak )
+	}
+	string average = avgN > 0 ? format( "%.0f", avgSum / float( avgN ) ) : "-"
+	string fastest = peak > 0.0 ? format( "%.0f", peak ) : "-"
+
+	string levelName = file.masterOn ? DodgeBot_LevelName( level ) : "关闭（MOD 页开关已关）"
+	string fireName = DodgeBot_GetFire( player ) ? format( "开（枪法 %d）", DodgeBot_GetAim( player ) ) : "关"
+	string line = format( "躲子弹靶子: %s | 移速挡位: %s | 击杀后刷新: %s\n传奇靶子还手: %s | %s\n近 %.0f 秒实测: 横移平均 %s | 最快 %s u/s",
+		levelName, DodgeBot_SpeedName( target ), DodgeBot_RespawnName( player ), fireName, DodgeBot_AdsName( DodgeBot_GetAds( player ) ), DODGE_STATS_WINDOW, average, fastest )
+	SendHudMessage( player, line, -1, 0.3, 255, 255, 255, 255, 0.1, 4.0, 0.5 )
+	printt( format( "[DODGEBOT] %s level=%d speed=%.0f fire=%s aim=%d avg=%s peak=%s natSide=%.1f natDepth=%.1f natBot=%.1f natAds=%.1f botSideSign=%.0f",
+		player.GetPlayerName(), level, target, string( DodgeBot_GetFire( player ) ), DodgeBot_GetAim( player ), average, fastest, file.natSide, file.natDepth, file.natBot, file.natAds, file.botSideSign ) )
+}
+
+void function DodgeBot_SetLevel( entity player, int level )
+{
+	file.levels[ player ] <- level
+	if ( level > 0 )
+	{
+		// Picking a level from the console also flips the Lab > MOD row on.
+		if ( !file.masterOn && CafeMod_SetEnabled( DODGE_CAFEMOD_ID, true, player ) )
+			CafeMod_SyncToAll()
+		file.masterOn = true
+		return
+	}
+
+	// Off for this player: hand their strafers back to the stock brain.
+	array<entity> mine = []
+	foreach ( entity bot, DodgeState st in file.states )
+	{
+		if ( st.owner == player && IsValid( bot ) )
+			mine.append( bot )
+	}
+	foreach ( entity bot in mine )
+		DodgeBot_HandBack( bot )
+}
+
+void function DodgeBot_OnClientDisconnected( entity player )
+{
+	RealFight_ForgetPlayer( player )
+	if ( player in file.levels )
+		delete file.levels[ player ]
+	if ( player in file.speedTargets )
+		delete file.speedTargets[ player ]
+	if ( player in file.respawn )
+		delete file.respawn[ player ]
+	if ( player in file.fireOn )
+		delete file.fireOn[ player ]
+	if ( player in file.aim )
+		delete file.aim[ player ]
+	if ( player in file.ads )
+		delete file.ads[ player ]
+}
+
+// ---- Respawn ring ---------------------------------------------------------------
+// When a taken-over strafer dies, the Lab slot respawns it 0.2 s later at the
+// owner's fixed spawn if one is set, else in front of the crosshair. So the
+// ring spot is picked at the moment of death and parked in the fixed spawn
+// until the respawn has used it: the new target appears there directly, with no
+// flash in front of the player first.
+
+DodgeRespawnPrefs function DodgeBot_RespawnPrefs( entity owner )
+{
+	if ( !( owner in file.respawn ) )
+	{
+		DodgeRespawnPrefs fresh
+		file.respawn[ owner ] <- fresh
+	}
+	return file.respawn[ owner ]
+}
+
+void function DodgeBot_DeathWatch( entity bot, entity owner )
+{
+	bot.EndSignal( "OnDestroy" )
+	owner.EndSignal( "OnDestroy" )
+	OnThreadEnd(
+		function() : ( bot )
+		{
+			DodgeBot_ForgetWatch( bot )
+		}
+	)
+	WaitSignal( bot, "OnDeath" )
+	DodgeBot_ArmRespawn( owner )
+}
+
+void function DodgeBot_ForgetWatch( entity bot )
+{
+	if ( bot in file.deathWatched )
+		delete file.deathWatched[ bot ]
+}
+
+// Standing spot on the owner's floor level, a random distance and any
+// direction from them, with a clear line from their eyes (rules out the far
+// side of walls and the inside of rocks).
+AimTrainerSpawnSpot function DodgeBot_PickRingSpot( entity owner, DodgeRespawnPrefs prefs )
+{
+	vector center = owner.GetOrigin()
+	float minU = prefs.minM * DODGE_UNITS_PER_METER
+	float maxU = prefs.maxM * DODGE_UNITS_PER_METER
+	AimTrainerSpawnSpot spot
+	spot.ok = false
+
+	for ( int i = 0; i < DODGE_RESPAWN_TRIES; i++ )
+	{
+		float yaw = RandomFloatRange( -180.0, 180.0 )
+		float dist = RandomFloatRange( minU, maxU )
+		vector want = center + AnglesToForward( < 0.0, yaw, 0.0 > ) * dist
+		spot = AimTrainer_CheckSpawnSpot( owner, want, true )
+		if ( !spot.ok )
+			continue
+		// Second half of the tries accepts a bigger height step.
+		float maxDz = i < DODGE_RESPAWN_TRIES / 2 ? DODGE_RESPAWN_MAX_DZ : DODGE_RESPAWN_MAX_DZ * 2.0
+		if ( fabs( spot.origin.z - center.z ) > maxDz )
+		{
+			spot.ok = false
+			continue
+		}
+		return spot
+	}
+	return spot
+}
+
+void function DodgeBot_ArmRespawn( entity owner )
+{
+	if ( !IsValid( owner ) || !owner.IsPlayer() || !file.masterOn )
+		return
+	DodgeRespawnPrefs prefs = DodgeBot_RespawnPrefs( owner )
+	if ( !prefs.on )
+		return
+
+	AimTrainerSpawnSpot spot = DodgeBot_PickRingSpot( owner, prefs )
+	if ( !spot.ok )
+	{
+		printt( format( "[DODGEBOT] no ring spot %.0f-%.0f m around %s, normal respawn", prefs.minM, prefs.maxM, owner.GetPlayerName() ) )
+		return
+	}
+
+	if ( !prefs.armed )
+	{
+		prefs.savedFixed = owner.p.aimTrainerFixedSpawn
+		prefs.savedPos = owner.p.aimTrainerFixedSpawnPos
+		prefs.armed = true
+	}
+	owner.p.aimTrainerFixedSpawn = true
+	owner.p.aimTrainerFixedSpawnPos = spot.origin
+	prefs.token++
+	thread DodgeBot_RestoreSpawnLater( owner, prefs.token )
+
+	printt( format( "[DODGEBOT] respawn ring for %s: %.1f m at %s", owner.GetPlayerName(),
+		Distance2D( spot.origin, owner.GetOrigin() ) / DODGE_UNITS_PER_METER, string( spot.origin ) ) )
+}
+
+void function DodgeBot_RestoreSpawnLater( entity owner, int token )
+{
+	owner.EndSignal( "OnDestroy" )
+	wait DODGE_RESPAWN_HOLD
+	DodgeBot_RestoreSpawn( owner, token )
+}
+
+// token < 0 restores whatever is armed.
+void function DodgeBot_RestoreSpawn( entity owner, int token )
+{
+	if ( !IsValid( owner ) || !( owner in file.respawn ) )
+		return
+	DodgeRespawnPrefs prefs = file.respawn[ owner ]
+	if ( !prefs.armed || ( token >= 0 && token != prefs.token ) )
+		return
+	owner.p.aimTrainerFixedSpawn = prefs.savedFixed
+	owner.p.aimTrainerFixedSpawnPos = prefs.savedPos
+	prefs.armed = false
+}
+
+// ---- Takeover ---------------------------------------------------------------
+
+void function DodgeBot_EntitiesDidLoad()
+{
+	if ( file.scanning )
+		return
+	file.scanning = true
+	thread DodgeBot_ScanThread()
+}
+
+void function DodgeBot_ScanThread()
+{
+	while ( true )
+	{
+		wait DODGE_SCAN_INTERVAL
+		if ( !file.masterOn )
+			continue
+		foreach ( entity npc in GetNPCArray() )
+			DodgeBot_TryTakeOver( npc )
+		foreach ( entity player in GetPlayerArray() )
+			DodgeBot_TryTakeOverLegend( player )
+	}
+}
+
+// Only stock Lab strafers: owned by a player, already running a scripted strafe
+// act, and not part of another freeroam drill (target switch, popcorn, ...).
+// Combat dummies run real AI and never set flowstateLastAct, so they stay out.
+bool function DodgeBot_IsLabStrafer( entity npc, entity owner )
+{
+	if ( npc.ai.flowstateLastAct == "" )
+		return false
+	int mode = owner.p.aimTrainerFreeroamMode
+	return mode == AIMTRAINER_FREEROAM_NONE || mode == AIMTRAINER_FREEROAM_AUTOSPAWN || mode == AIMTRAINER_FREEROAM_MANUAL
+}
+
+void function DodgeBot_TryTakeOver( entity npc )
+{
+	if ( !IsValid( npc ) || !IsAlive( npc ) || ( npc in file.states ) )
+		return
+
+	entity owner = npc.ai.aimTrainerOwner
+	if ( !IsValid( owner ) || !owner.IsPlayer() || !IsAlive( owner ) )
+		return
+	if ( DodgeBot_GetLevel( owner ) <= 0 )
+		return
+	if ( !DodgeBot_IsLabStrafer( npc, owner ) )
+		return
+
+	// Ends the stock strafe thread; ours starts clean.
+	npc.Signal( "StopBotStrafe" )
+	DodgeBot_Start( npc, owner, false )
+}
+
+// Legend body: a fake player named R5F-..., spawned by the Lab legend strafer.
+// Its owner is the human who has legend bots out, nearest first.
+void function DodgeBot_TryTakeOverLegend( entity bot )
+{
+	if ( !IsValid( bot ) || !bot.IsPlayer() || !bot.IsBot() || !IsAlive( bot ) || ( bot in file.states ) )
+		return
+	// Wait for the Lab to finish: it places the bot (re-placing a few frames
+	// when the engine shoves it), marks it placed, then starts its own strafe,
+	// face and fire program in the same frame. Taking over before that point
+	// gets overwritten by that program.
+	if ( bot.GetPlayerName().find( DODGE_LEGEND_PREFIX ) != 0 || !LegendBot_IsPlaced( bot ) )
+		return
+
+	entity owner = DodgeBot_FindLegendOwner( bot )
+	if ( !IsValid( owner ) || !IsAlive( owner ) || DodgeBot_GetLevel( owner ) <= 0 )
+		return
+	int mode = owner.p.aimTrainerFreeroamMode
+	if ( mode != AIMTRAINER_FREEROAM_NONE && mode != AIMTRAINER_FREEROAM_AUTOSPAWN && mode != AIMTRAINER_FREEROAM_MANUAL )
+		return
+
+	// Drops the native strafe/face program and the Lab fire loop; this brain
+	// sends input every tick and shoots on its own settings.
+	if ( !DodgeBot_SilenceStock( bot ) )
+		return
+	DodgeBot_Start( bot, owner, true )
+}
+
+bool function DodgeBot_SilenceStock( entity bot )
+{
+	try
+	{
+		bot.BotCmd_ClearProgram()
+	}
+	catch ( eClear )
+	{
+		return false
+	}
+	// Per-bot override: later Lab restarts of this bot keep its fire loop off.
+	LegendBot_SetFireFor( bot, false )
+	return true
+}
+
+entity function DodgeBot_FindLegendOwner( entity bot )
+{
+	entity best = null
+	float bestDist = 0.0
+	foreach ( entity human in GetPlayerArray() )
+	{
+		if ( !IsValid( human ) || human.IsBot() || LegendBot_Count( human ) <= 0 )
+			continue
+		float d = Distance( human.GetOrigin(), bot.GetOrigin() )
+		if ( best == null || d < bestDist )
+		{
+			best = human
+			bestDist = d
+		}
+	}
+	return best
+}
+
+void function DodgeBot_Start( entity bot, entity owner, bool isBot )
+{
+	DodgeState st
+	st.bot = bot
+	st.owner = owner
+	st.isBot = isBot
+	st.anchor = bot.GetOrigin()
+	st.prefDist = min( max( Distance2D( bot.GetOrigin(), owner.GetOrigin() ), 250.0 ), 1500.0 )
+	st.side = RandomInt( 2 )
+	st.maxPool = maxint( 1, bot.GetMaxHealth() + bot.GetShieldHealthMax() )
+	st.lastPool = bot.GetHealth() + bot.GetShieldHealth()
+	st.lastPerceive = Time()
+	st.lastAimTime = Time()
+	file.states[ bot ] <- st
+
+	thread DodgeBot_Brain( st )
+	if ( isBot )
+	{
+		thread DodgeBot_FireLoop( st )
+		thread DodgeBot_GuardProgram( st )
+	}
+	if ( !( bot in file.deathWatched ) )
+	{
+		file.deathWatched[ bot ] <- true
+		thread DodgeBot_DeathWatch( bot, owner )
+	}
+}
+
+// ---- Perception ---------------------------------------------------------------
+
+void function DodgeBot_OnWeaponAttack( entity player, entity weapon, string weaponName, int ammoUsed, vector attackOrigin, vector attackDir )
+{
+	if ( !IsValid( player ) || !player.IsPlayer() || file.states.len() == 0 )
+		return
+
+	vector dir = Normalize( attackDir )
+	float now = Time()
+	foreach ( entity bot, DodgeState st in file.states )
+	{
+		if ( st.owner != player || !IsValid( bot ) )
+			continue
+		vector v = DodgeBot_Chest( st ) - attackOrigin
+		float along = DotProduct( v, dir )
+		if ( along <= 0.0 )
+			continue
+		float miss = Length( v - dir * along )
+		// Keep the closest round of a burst.
+		if ( now - st.lastShotTime > 0.1 || miss < st.lastShotMiss )
+			st.lastShotMiss = miss
+		st.lastShotTime = now
+	}
+}
+
+vector function DodgeBot_Chest( DodgeState st )
+{
+	return st.bot.GetOrigin() + < 0, 0, DODGE_CHEST >
+}
+
+// Reads the owner like an opponent would and schedules a reaction once a threat
+// shows up. The reaction lands after a human delay, not on the same frame.
+void function DodgeBot_Perceive( DodgeState st, DodgeParams p )
+{
+	entity bot = st.bot
+	entity owner = st.owner
+	float now = Time()
+	float dt = max( now - st.lastPerceive, 0.01 )
+	st.lastPerceive = now
+
+	vector eye = owner.EyePosition()
+	vector fwd = AnglesToForward( owner.EyeAngles() )
+	vector toBot = DodgeBot_Chest( st ) - eye
+	float along = DotProduct( toBot, fwd )
+	float miss = 9999.0
+	if ( along > 0.0 )
+	{
+		vector offset = toBot - fwd * along   // chest relative to the crosshair ray
+		miss = Length( offset )
+		// Crosshair point relative to the chest, on the bot's right axis.
+		float lateral = DotProduct( offset * -1.0, AnglesToRight( bot.GetAngles() ) )
+		st.crossSide = lateral > 0.0 ? 1 : 0
+	}
+
+	float closing = ( st.lastMiss - miss ) / dt
+	if ( st.lastMiss > 5000.0 || miss > 5000.0 )
+		closing = 0.0
+	st.missRate = st.missRate * 0.5 + closing * 0.5
+	st.lastMiss = miss
+	st.onBody = miss < p.aimRadius
+
+	int pool = bot.GetHealth() + bot.GetShieldHealth()
+	if ( pool < st.lastPool )
+		st.lastHurtTime = now
+	st.lastPool = pool
+
+	bool catching = miss < p.aimRadius * 3.0 && st.missRate > DODGE_CLOSING_SPEED
+	bool shotNear = ( now - st.lastShotTime ) < DODGE_SHOT_MEMORY && st.lastShotMiss < DODGE_SHOT_NEAR
+	bool hurt = ( now - st.lastHurtTime ) < DODGE_HURT_MEMORY
+	if ( !( st.onBody || catching || shotNear || hurt ) )
+		return
+
+	st.engagedUntil = now + DODGE_ENGAGED_HOLD
+	if ( st.reactAt < 0.0 )
+		st.reactAt = now + RandomFloatRange( p.reactMin, p.reactMax )
+}
+
+bool function DodgeBot_ReactionDue( DodgeState st )
+{
+	return st.reactAt > 0.0 && Time() >= st.reactAt
+}
+
+// ---- Movement ---------------------------------------------------------------
+
+// Faces the owner with a yaw bend. A sideways act under a bend becomes a
+// diagonal: off > 0 makes a right strafe close in and a left strafe back off.
+void function DodgeBot_Face( DodgeState st, float yawOffset )
+{
+	// A legend bot keeps its eyes on the player (DodgeBot_BotAim) and gets the
+	// diagonal from forward input instead; see DodgeBot_RunBotLeg.
+	if ( st.isBot )
+	{
+		st.bend = yawOffset
+		return
+	}
+	vector delta = st.owner.GetOrigin() - st.bot.GetOrigin()
+	delta.z = 0
+	// VectorToAngles gives 0..360 and the bend adds up to ~36 degrees; SetAngles
+	// throws a script error (and the server drops) outside -360..360.
+	float want = DodgeBot_WrapYaw( VectorToAngles( delta ).y + yawOffset )
+	if ( fabs( AngleDiff( want, st.bot.GetAngles().y ) ) < DODGE_FACE_EPS )
+		return
+	st.bot.SetAngles( < 0.0, want, 0.0 > )
+}
+
+// Any yaw into -180..180.
+float function DodgeBot_WrapYaw( float yaw )
+{
+	while ( yaw > 180.0 )
+		yaw -= 360.0
+	while ( yaw < -180.0 )
+		yaw += 360.0
+	return yaw
+}
+
+// +1 close in, -1 back off, 0 hold. Keeps roughly the spawn distance.
+int function DodgeBot_RangeIntent( DodgeState st )
+{
+	float dist = Distance2D( st.bot.GetOrigin(), st.owner.GetOrigin() )
+	if ( dist > st.prefDist * 1.3 )
+		return 1
+	if ( dist < st.prefDist * 0.75 )
+		return -1
+	return 0
+}
+
+float function DodgeBot_YawForSide( int side, int intent )
+{
+	if ( intent == 0 )
+		return RandomFloatRange( -8.0, 8.0 )
+	float bend = DODGE_RANGE_YAW * float( intent )
+	return side == 1 ? bend : -bend
+}
+
+// Past the leash, the side whose strafe heads back toward the spawn spot wins.
+int function DodgeBot_LeashSide( DodgeState st, int wanted )
+{
+	vector toAnchor = st.anchor - st.bot.GetOrigin()
+	toAnchor.z = 0
+	if ( Length( toAnchor ) < DODGE_LEASH )
+		return wanted
+	return DotProduct( toAnchor, AnglesToRight( st.bot.GetAngles() ) ) > 0.0 ? 1 : 0
+}
+
+// Leg lengths never settle into a beat: a draw too close to either of the last
+// two is drawn again, and now and then a leg runs long.
+float function DodgeBot_PickDuration( DodgeState st, float lo, float hi )
+{
+	float d = RandomFloatRange( lo, hi )
+	int n = st.legHistory.len()
+	for ( int i = maxint( 0, n - 2 ); i < n; i++ )
+	{
+		if ( fabs( d - st.legHistory[i] ) < 0.04 )
+		{
+			d = RandomFloatRange( lo, hi )
+			break
+		}
+	}
+	if ( DodgeBot_Chance( 0.12 ) )
+		d *= 1.6
+	st.legHistory.append( d )
+	if ( st.legHistory.len() > 4 )
+		st.legHistory.remove( 0 )
+	return d
+}
+
+// ---- Speed presets ------------------------------------------------------------
+// Dummies move by animation root motion, so a playback rate is not a speed.
+// Every moving leg measures how far the bot really went and learns "units per
+// second at rate 1.0" for strafes and for forward/back steps; a preset speed is
+// then that target divided by the learned figure.
+
+float function DodgeBot_GetSpeedTarget( entity owner )
+{
+	if ( owner in file.speedTargets )
+		return file.speedTargets[ owner ]
+	return 0.0
+}
+
+float function DodgeBot_NaturalSpeed( int move )
+{
+	float nat = move == DODGE_MOVE_DEPTH ? file.natDepth : file.natSide
+	if ( nat <= 0.0 )
+		return DODGE_NAT_SPEED_GUESS
+	return nat
+}
+
+// lo/hi are tempo factors around the base speed. Under a preset the base is
+// the preset itself and a human cannot go over it, so factors cap at 1.0.
+float function DodgeBot_Rate( DodgeState st, int move, float lo, float hi )
+{
+	float target = DodgeBot_GetSpeedTarget( st.owner )
+	if ( target <= 0.0 || move == DODGE_MOVE_STAND )
+		return RandomFloatRange( lo, hi ) * FlowstateDummy_GetSpeedMult( st.bot )
+
+	float factor = min( RandomFloatRange( lo, hi ), 1.0 )
+	factor = max( factor, DODGE_PRESET_MIN_FACTOR )
+	return factor * target / DodgeBot_NaturalSpeed( move )
+}
+
+void function DodgeBot_LearnSpeed( DodgeState st, int move, float measured )
+{
+	float rate = st.bot.ai.flowstateLastPlaybackRate
+	if ( rate < 0.05 )
+		return
+	float nat = measured / rate
+	if ( nat < 40.0 || nat > 900.0 )
+		return
+
+	if ( move == DODGE_MOVE_DEPTH )
+		file.natDepth = file.natDepth <= 0.0 ? nat : file.natDepth * 0.7 + nat * 0.3
+	else
+		file.natSide = file.natSide <= 0.0 ? nat : file.natSide * 0.7 + nat * 0.3
+}
+
+// ---- Speed readout --------------------------------------------------------------
+// Every tick of every moving leg is logged for DODGE_STATS_WINDOW seconds, blend-ins
+// included: this is the speed you see, not the calibration figure.
+void function DodgeBot_RecordSample( DodgeState st, float dist, float dt )
+{
+	float now = Time()
+	st.sampleAt.append( now )
+	st.sampleDist.append( dist )
+	st.sampleDt.append( dt )
+	while ( st.sampleAt.len() > 0 && now - st.sampleAt[0] > DODGE_STATS_WINDOW )
+	{
+		st.sampleAt.remove( 0 )
+		st.sampleDist.remove( 0 )
+		st.sampleDt.remove( 0 )
+	}
+}
+
+// Average over the window and the fastest DODGE_STATS_PEAK-second stretch.
+DodgeSpeedStats function DodgeBot_GetStats( DodgeState st )
+{
+	DodgeSpeedStats s
+	float totalDist = 0.0
+	float totalTime = 0.0
+	int n = st.sampleAt.len()
+	for ( int i = 0; i < n; i++ )
+	{
+		totalDist += st.sampleDist[i]
+		totalTime += st.sampleDt[i]
+
+		float d = 0.0
+		float t = 0.0
+		for ( int j = i; j < n && t < DODGE_STATS_PEAK; j++ )
+		{
+			d += st.sampleDist[j]
+			t += st.sampleDt[j]
+		}
+		if ( t >= DODGE_STATS_PEAK && d / t > s.peak )
+			s.peak = d / t
+	}
+	s.average = totalTime > 0.3 ? totalDist / totalTime : 0.0
+	return s
+}
+
+// Runs one leg in DODGE_TICK slices, re-reading the owner every slice.
+// Cut short on a wall, or when a reaction comes due once reactAfter seconds
+// have run (DODGE_NO_REACT: never, the leg plays out).
+int function DodgeBot_RunLeg( DodgeState st, DodgeParams p, int move, int dirSign, float duration, float rate, float yawOffset, float blend, float reactAfter = DODGE_MIN_LEG_BEFORE_REACT )
+{
+	if ( st.isBot )
+		return DodgeBot_RunBotLeg( st, p, move, dirSign, duration, yawOffset, reactAfter )
+
+	entity bot = st.bot
+	string act = ""
+	if ( move == DODGE_MOVE_STAND )
+		act = "ACT_STAND"
+	else if ( move == DODGE_MOVE_DEPTH )
+		act = dirSign > 0 ? "ACT_SPRINT_FORWARD" : "ACT_SPRINT_BACKWARD"
+	else
+		act = FlowstateHard_SideAct( st.side, false )
+
+	FlowstateDummy_PlayActivityIfChanged( bot, act, rate, blend )
+	FlowstateDummy_ConformToGround( bot )
+
+	float start = Time()
+	float endTime = start + duration
+	vector checkPos = bot.GetOrigin()
+	int slices = 0
+	int stuck = 0
+	bool moving = move != DODGE_MOVE_STAND
+	bool measure = moving
+	float measureFrom = -1.0
+	vector measurePos = bot.GetOrigin()
+	vector tickPos = bot.GetOrigin()
+	float tickTime = Time()
+
+	while ( Time() < endTime )
+	{
+		wait DODGE_TICK
+		if ( !IsValid( bot ) || !IsValid( st.owner ) )
+			return DODGE_LEG_DONE
+		slices++
+
+		// Readout: every tick of a moving leg, as seen.
+		if ( moving )
+			DodgeBot_RecordSample( st, Distance2D( bot.GetOrigin(), tickPos ), Time() - tickTime )
+		tickPos = bot.GetOrigin()
+		tickTime = Time()
+
+		// Calibration sample starts once the blend-in is over.
+		if ( measure && measureFrom < 0.0 && Time() - start >= DODGE_MEASURE_SKIP )
+		{
+			measureFrom = Time()
+			measurePos = bot.GetOrigin()
+		}
+		if ( measure && measureFrom > 0.0 && Time() - measureFrom >= DODGE_MEASURE_MIN )
+		{
+			float speed = Distance2D( bot.GetOrigin(), measurePos ) / ( Time() - measureFrom )
+			DodgeBot_LearnSpeed( st, move, speed )
+			measureFrom = Time()
+			measurePos = bot.GetOrigin()
+		}
+
+		DodgeBot_Perceive( st, p )
+		if ( slices % 3 == 0 )
+			DodgeBot_Face( st, yawOffset )
+
+		if ( !IsValid( bot.GetGroundEntity() ) || slices % 3 == 0 )
+			FlowstateDummy_ConformToGround( bot )
+
+		if ( Time() - start >= reactAfter && DodgeBot_ReactionDue( st ) )
+			return DODGE_LEG_REACT
+
+		if ( move == DODGE_MOVE_STAND || slices % 2 != 0 )
+			continue
+		if ( Distance2DSqr( bot.GetOrigin(), checkPos ) < DODGE_STUCK_DIST_SQR )
+		{
+			measure = false   // scraping a wall is not a speed sample
+			stuck++
+			if ( stuck >= DODGE_STUCK_CHECKS_NEEDED )
+				return DODGE_LEG_STUCK
+		}
+		else
+		{
+			stuck = 0
+		}
+		checkPos = bot.GetOrigin()
+	}
+	return DODGE_LEG_DONE
+}
+
+// ---- Legend bot driver ----------------------------------------------------------
+// A legend bot is a fake player, so it moves with real player physics: real
+// acceleration, and the real speed of whatever it holds (hipfire, or ADS with
+// IN_ZOOM). Each tick it gets stick input and a view angle, like a human.
+
+// Stick input for one tick. Side legs mix in forward input for the range bend
+// (the dummy turns its body instead): a right strafe with bend > 0 closes in.
+void function DodgeBot_BotInput( DodgeState st, int move, int dirSign, float mag )
+{
+	float fwd = 0.0
+	float side = 0.0
+	if ( move == DODGE_MOVE_SIDE )
+	{
+		float dir = st.side == 1 ? 1.0 : -1.0
+		side = dir * cos( st.bend * DODGE_DEG ) * file.botSideSign
+		fwd = dir * sin( st.bend * DODGE_DEG )
+	}
+	else if ( move == DODGE_MOVE_DEPTH )
+	{
+		fwd = float( dirSign )
+	}
+	try
+	{
+		st.bot.BotCmd_SetMove( fwd * mag, side * mag, DodgeBot_BotButtons( st ) )
+	}
+	catch ( eMove )
+	{
+	}
+}
+
+float function DodgeBot_SideSign()
+{
+	return file.botSideSign
+}
+
+int function DodgeBot_BotButtons( DodgeState st )
+{
+	int buttons = DodgeBot_ZoomButtons( st )
+	if ( st.wantReload )
+		return buttons | IN_RELOAD
+	return buttons | DodgeBot_AttackButtons( st )
+}
+
+// The stance this bot wants right now.
+void function DodgeBot_UpdateWantAds( DodgeState st )
+{
+	int ads = DodgeBot_GetAds( st.owner )
+	bool want = st.wantAds
+	if ( ads == DODGE_ADS_ON || DodgeBot_GetSpeedTarget( st.owner ) == DODGE_SPEED_ADS )
+	{
+		want = true
+	}
+	else if ( ads == DODGE_ADS_OFF )
+	{
+		want = false
+	}
+	else
+	{
+		float dist = Distance( st.bot.GetOrigin(), st.owner.GetOrigin() )
+		want = dist > DODGE_ADS_DIST
+		if ( Time() - st.wantAdsSince < DODGE_ADS_MIN_HOLD )
+			want = st.wantAds
+	}
+	// Players come out of the sights to reload.
+	if ( st.wantReload || st.running )
+		want = false
+	if ( want != st.wantAds )
+	{
+		st.wantAds = want
+		st.wantAdsSince = Time()
+		st.zoomMissingSince = -1.0
+	}
+}
+
+// Presses the real zoom button. Holding it is the normal way; if the engine
+// shows no zoom for a while, switch to tapping the toggle-zoom button.
+int function DodgeBot_ZoomButtons( DodgeState st )
+{
+	DodgeBot_UpdateWantAds( st )
+	float frac = st.bot.GetZoomFrac()
+
+	if ( st.wantAds && frac < 0.1 )
+	{
+		if ( st.zoomMissingSince < 0.0 )
+		{
+			st.zoomMissingSince = Time()
+		}
+		else if ( Time() - st.zoomMissingSince > DODGE_ZOOM_GIVE_UP )
+		{
+			st.zoomMissingSince = Time()
+			if ( file.zoomSwaps < 4 )
+			{
+				file.zoomSwaps++
+				file.zoomByToggle = !file.zoomByToggle
+				printt( format( "[DODGEBOT] %s did not zoom, now using the %s button", st.bot.GetPlayerName(), file.zoomByToggle ? "toggle" : "hold" ) )
+			}
+		}
+	}
+	else
+	{
+		st.zoomMissingSince = -1.0
+	}
+
+	if ( !file.zoomByToggle )
+		return st.wantAds ? IN_ZOOM : 0
+
+	bool zoomed = frac > 0.05
+	if ( zoomed != st.wantAds && Time() - st.lastZoomToggle > DODGE_ZOOM_TOGGLE_GAP )
+	{
+		st.lastZoomToggle = Time()
+		return IN_ZOOM_TOGGLE
+	}
+	return 0
+}
+
+// Automatics hold attack; semi-autos and burst guns press it once per shot or
+// burst at the gun's own cadence (press one tick, release the next).
+int function DodgeBot_AttackButtons( DodgeState st )
+{
+	if ( !st.trigger || st.running || RealFight_HoldsFire( st ) )
+	{
+		st.pulseDown = false
+		return 0
+	}
+	if ( st.fireMode == DODGE_BOTFIRE_HOLD )
+		return IN_ATTACK
+	if ( st.pulseDown )
+	{
+		st.pulseDown = false
+		return 0
+	}
+	if ( Time() >= st.nextPulse )
+	{
+		st.pulseDown = true
+		st.nextPulse = Time() + max( st.fireInterval, DODGE_TICK * 2.0 )
+		return IN_ATTACK
+	}
+	return 0
+}
+
+// Input size for the speed preset. Player physics already gives the true
+// hipfire / ADS speed at full input; a custom speed below what the bot can
+// do scales the input down. Nothing can push it past its real top speed.
+float function DodgeBot_BotInputMag( DodgeState st )
+{
+	float target = DodgeBot_GetSpeedTarget( st.owner )
+	if ( target <= 0.0 )
+		return 1.0
+	// ADS: the held zoom normally slows the bot by itself. If it does not
+	// (no zoom on this gun, zoom refused), the stick makes up the difference.
+	float full = st.bot.GetZoomFrac() > 0.5 ? file.natAds : file.natBot
+	if ( full <= 0.0 )
+		return 1.0
+	return min( max( target / full, 0.2 ), 1.0 )
+}
+
+// Human aim: the crosshair trails the target (lag) and wanders around it
+// (error), both from DodgeBot's own aim setting. Angles are wrapped; out-of-range
+// angles are script errors.
+void function DodgeBot_BotAim( DodgeState st )
+{
+	entity bot = st.bot
+	entity owner = st.owner
+	float now = Time()
+	float dt = min( max( now - st.lastAimTime, 0.0 ), 0.2 )
+	st.lastAimTime = now
+
+	float skill = min( max( float( DodgeBot_GetAim( owner ) ) / 100.0, 0.0 ), 1.0 )
+	float errDeg = DODGE_AIM_ERR_WORST_DEG + ( DODGE_AIM_ERR_BEST_DEG - DODGE_AIM_ERR_WORST_DEG ) * skill
+	float lag = DODGE_AIM_LAG_WORST + ( DODGE_AIM_LAG_BEST - DODGE_AIM_LAG_WORST ) * skill
+	// Real fight models the late reaction separately; the hand itself is quick.
+	if ( RealFight_IsOn( owner ) )
+		lag = lag * 0.5
+
+	vector target = RealFight_AimTarget( st, owner.GetOrigin() + < 0, 0, DODGE_CHEST > )
+	if ( st.aimPoint == < 0, 0, 0 > )
+		st.aimPoint = target
+	st.aimPoint = st.aimPoint + ( target - st.aimPoint ) * ( dt / ( lag + dt ) )
+
+	vector eye = bot.EyePosition()
+	float errU = Distance( eye, target ) * errDeg * DODGE_DEG
+	vector kick = < RandomFloatRange( -1.0, 1.0 ), RandomFloatRange( -1.0, 1.0 ), RandomFloatRange( -0.6, 0.6 ) >
+	// Real fight: a slow drift like a hand, instead of a per-tick shake.
+	float keep = RealFight_IsOn( owner ) ? 0.96 : 0.9
+	float shake = RealFight_IsOn( owner ) ? 0.12 : 0.3
+	st.aimNoise = st.aimNoise * keep + kick * ( errU * shake )
+	float n = Length( st.aimNoise )
+	if ( n > errU && n > 0.0 )
+		st.aimNoise = st.aimNoise * ( errU / n )
+
+	vector ang = VectorToAngles( st.aimPoint + st.aimNoise - eye )
+	float pitch = min( max( DodgeBot_WrapYaw( ang.x ), -89.0 ), 89.0 )
+	try
+	{
+		bot.BotCmd_SetLook( < pitch, DodgeBot_WrapYaw( ang.y ), 0.0 > )
+	}
+	catch ( eLook )
+	{
+	}
+}
+
+// ---- Legend bot shooting --------------------------------------------------------
+// DodgeBot's own fire loop: shoots while it can see you and its crosshair is
+// near you, takes a human beat when you come into view, reloads when dry.
+// The aim error lives in DodgeBot_BotAim, so the native profile gets none.
+
+void function DodgeBot_ApplyFireProfile( DodgeState st )
+{
+	entity bot = st.bot
+	int mode = DODGE_BOTFIRE_HOLD
+	float interval = 0.2
+	entity weapon = bot.GetActiveWeapon( eActiveInventorySlot.mainHand )
+	if ( IsValid( weapon ) )
+	{
+		float rate = 1.0
+		int burst = 0
+		bool semi = false
+		try
+		{
+			rate = weapon.GetWeaponSettingFloat( eWeaponVar.fire_rate )
+			burst = weapon.GetWeaponSettingInt( eWeaponVar.burst_fire_count )
+			semi = weapon.GetWeaponSettingBool( eWeaponVar.is_semi_auto )
+		}
+		catch ( eVar )
+		{
+		}
+		if ( rate <= 0.0 )
+			rate = 1.0
+		if ( burst > 1 )
+		{
+			mode = DODGE_BOTFIRE_BURST
+			interval = float( burst ) / rate + DODGE_BURST_GAP
+		}
+		else if ( semi )
+		{
+			mode = DODGE_BOTFIRE_TAP
+			interval = 1.0 / rate
+		}
+	}
+	st.fireMode = mode
+	st.fireInterval = interval
+	try
+	{
+		bot.BotCmd_SetFireProfile( mode, interval, 0.0 )
+	}
+	catch ( eProfile )
+	{
+	}
+}
+
+void function DodgeBot_SetTrigger( DodgeState st, bool on )
+{
+	st.trigger = on
+	entity bot = st.bot
+	if ( !IsValid( bot ) )
+		return
+	try
+	{
+		bot.BotCmd_SetTrigger( on )
+	}
+	catch ( eTrigger )
+	{
+	}
+}
+
+// Every 2 s per bot while fire is on: is it aimed, can it see you, is the
+// magazine going down. For checking the fire path from the log.
+void function DodgeBot_LogFire( DodgeState st, entity weapon, bool shot )
+{
+	if ( Time() - st.lastFireLog < 2.0 )
+		return
+	st.lastFireLog = Time()
+	entity bot = st.bot
+	vector dir = Normalize( st.owner.GetOrigin() + < 0, 0, DODGE_CHEST > - bot.EyePosition() )
+	float dot = DotProduct( AnglesToForward( bot.EyeAngles() ), dir )
+	int clip = weapon.UsesClipsForAmmo() ? weapon.GetWeaponPrimaryClipCount() : -1
+	printt( format( "[DODGEBOT] fire %s: shot=%s aimDot=%.3f clip=%d mode=%d interval=%.2f weapon=%s wantAds=%s zoom=%.2f speed=%.0f",
+		bot.GetPlayerName(), string( shot ), dot, clip, st.fireMode, st.fireInterval, weapon.GetWeaponClassName(),
+		string( st.wantAds ), bot.GetZoomFrac(), Length( < bot.GetVelocity().x, bot.GetVelocity().y, 0.0 > ) ) )
+}
+
+// Clear line from its eyes to yours, and its crosshair roughly on you.
+bool function DodgeBot_HasShot( entity bot, entity owner )
+{
+	vector eye = bot.EyePosition()
+	vector target = owner.GetOrigin() + < 0, 0, DODGE_CHEST >
+	vector dir = Normalize( target - eye )
+	if ( DotProduct( AnglesToForward( bot.EyeAngles() ), dir ) < DODGE_FIRE_CONE_DOT )
+		return false
+	TraceResults los = TraceLine( eye, owner.EyePosition(), [ bot, owner ], TRACE_MASK_SHOT, TRACE_COLLISION_GROUP_NONE )
+	return los.fraction >= 1.0 || los.hitEnt == owner
+}
+
+void function DodgeBot_FireLoop( DodgeState st )
+{
+	entity bot = st.bot
+	entity owner = st.owner
+	bot.EndSignal( "OnDestroy" )
+	bot.EndSignal( "OnDeath" )
+	bot.EndSignal( "DodgeBot_Stop" )
+	bot.EndSignal( "StopBotStrafe" )
+	owner.EndSignal( "OnDestroy" )
+
+	OnThreadEnd(
+		function() : ( st )
+		{
+			st.wantReload = false
+			DodgeBot_SetTrigger( st, false )
+		}
+	)
+
+	try
+	{
+		SetInfiniteAmmoForPlayer( bot, true, [], true, true )
+	}
+	catch ( eAmmo )
+	{
+	}
+
+	entity lastWeapon = null
+	float profileAt = -99.0
+	bool hadShot = false
+	while ( IsValid( bot ) && IsAlive( bot ) && ( bot in file.states ) )
+	{
+		wait DODGE_FIRE_THINK
+		if ( !DodgeBot_GetFire( owner ) || !IsAlive( owner ) || DodgeBot_GetLevel( owner ) <= 0 )
+		{
+			DodgeBot_SetTrigger( st, false )
+			hadShot = false
+			continue
+		}
+		entity weapon = bot.GetActiveWeapon( eActiveInventorySlot.mainHand )
+		if ( !IsValid( weapon ) )
+		{
+			DodgeBot_SetTrigger( st, false )
+			continue
+		}
+		// Re-sent on a weapon swap, after the Lab touched the bot, and once a
+		// second in case a Lab slider pushed its own profile.
+		if ( weapon != lastWeapon || st.profileDirty || Time() - profileAt > DODGE_FIRE_PROFILE_REFRESH )
+		{
+			lastWeapon = weapon
+			st.profileDirty = false
+			profileAt = Time()
+			DodgeBot_ApplyFireProfile( st )
+		}
+		if ( weapon.UsesClipsForAmmo() && weapon.GetWeaponPrimaryClipCount() <= 0 )
+		{
+			DodgeBot_SetTrigger( st, false )
+			st.wantReload = true
+			bot.BotCmd_PressButtons( IN_RELOAD )
+			float giveUp = Time() + 6.0
+			while ( IsValid( weapon ) && weapon.GetWeaponPrimaryClipCount() <= 0 && Time() < giveUp )
+			{
+				wait DODGE_FIRE_THINK
+				if ( !weapon.IsReloading() )
+					bot.BotCmd_PressButtons( IN_RELOAD )
+			}
+			st.wantReload = false
+			if ( IsValid( weapon ) && weapon.GetWeaponPrimaryClipCount() <= 0 )
+				weapon.SetWeaponPrimaryClipCount( weapon.GetWeaponPrimaryClipCountMax() )
+			wait RandomFloatRange( DODGE_RELOAD_SETTLE_MIN, DODGE_RELOAD_SETTLE_MAX )
+			hadShot = false
+			continue
+		}
+		bool shot = DodgeBot_HasShot( bot, owner )
+		if ( shot && !hadShot )
+		{
+			wait RealFight_FireReact( st, RandomFloatRange( DODGE_FIRE_REACT_MIN, DODGE_FIRE_REACT_MAX ) )
+			shot = IsValid( owner ) && IsAlive( owner ) && DodgeBot_HasShot( bot, owner )
+		}
+		hadShot = shot
+		DodgeBot_SetTrigger( st, shot )
+		DodgeBot_LogFire( st, weapon, shot )
+	}
+}
+
+// The Lab restarts a bot's program when its settings change (speed, strafing,
+// fire toggles): every such restart passes through its fire setup, which
+// signals LegendBot_FireLoop. Take the bot back each time.
+void function DodgeBot_GuardProgram( DodgeState st )
+{
+	entity bot = st.bot
+	bot.EndSignal( "OnDestroy" )
+	bot.EndSignal( "OnDeath" )
+	bot.EndSignal( "DodgeBot_Stop" )
+	bot.EndSignal( "StopBotStrafe" )
+	st.owner.EndSignal( "OnDestroy" )
+
+	while ( IsValid( bot ) && ( bot in file.states ) )
+	{
+		WaitSignal( bot, "LegendBot_FireLoop" )
+		WaitFrame()   // let the restart finish
+		if ( !IsValid( bot ) || !IsAlive( bot ) || !( bot in file.states ) )
+			return
+		// Our own SetFireFor below signals too, but nothing is waiting yet.
+		DodgeBot_SilenceStock( bot )
+		st.profileDirty = true
+	}
+}
+
+// Learns which way +side input moves the bot, once per side leg: if the
+// velocity keeps going the other way, the sign flips.
+void function DodgeBot_CheckBotSign( DodgeState st )
+{
+	vector toOwner = st.owner.GetOrigin() - st.bot.GetOrigin()
+	vector right = AnglesToRight( < 0.0, VectorToAngles( toOwner ).y, 0.0 > )
+	float along = DotProduct( st.bot.GetVelocity(), right )
+	if ( fabs( along ) < DODGE_BOT_SIGN_MIN_SPEED )
+		return
+	bool wantRight = st.side == 1
+	if ( ( along > 0.0 ) == wantRight )
+	{
+		file.botSignMismatch = 0
+		return
+	}
+	file.botSignMismatch++
+	if ( file.botSignMismatch >= DODGE_BOT_SIGN_FLIP_AFTER )
+	{
+		file.botSideSign *= -1.0
+		file.botSignMismatch = 0
+		printt( format( "[DODGEBOT] legend bot side input inverted, sign now %.0f", file.botSideSign ) )
+	}
+}
+
+// The bot version of DodgeBot_RunLeg: same timing, interrupts, stuck check and
+// readout, driven by input instead of animation.
+int function DodgeBot_RunBotLeg( DodgeState st, DodgeParams p, int move, int dirSign, float duration, float yawOffset, float reactAfter )
+{
+	entity bot = st.bot
+	st.bend = yawOffset
+	float mag = DodgeBot_BotInputMag( st )
+	float start = Time()
+	float endTime = start + duration
+	vector checkPos = bot.GetOrigin()
+	vector tickPos = bot.GetOrigin()
+	float tickTime = Time()
+	int slices = 0
+	int stuck = 0
+	bool signChecked = move != DODGE_MOVE_SIDE
+
+	DodgeBot_BotAim( st )
+	DodgeBot_BotInput( st, move, dirSign, mag )
+
+	while ( Time() < endTime )
+	{
+		wait DODGE_TICK
+		if ( !IsValid( bot ) || !IsAlive( bot ) || !IsValid( st.owner ) )
+			return DODGE_LEG_DONE
+		slices++
+
+		DodgeBot_BotAim( st )
+		mag = DodgeBot_BotInputMag( st )
+		DodgeBot_BotInput( st, move, dirSign, mag )
+
+		if ( move != DODGE_MOVE_STAND )
+		{
+			float moved = Distance2D( bot.GetOrigin(), tickPos )
+			DodgeBot_RecordSample( st, moved, Time() - tickTime )
+			// Full-input speed once accelerated, for custom speed presets.
+			float zoomFrac = bot.GetZoomFrac()
+			if ( zoomFrac > 0.95 && mag > 0.1 && Time() - start >= 0.3 )
+			{
+				float adsV = Length( < bot.GetVelocity().x, bot.GetVelocity().y, 0.0 > ) / mag
+				if ( adsV > 40.0 )
+					file.natAds = file.natAds <= 0.0 ? adsV : file.natAds * 0.8 + adsV * 0.2
+			}
+			if ( zoomFrac < 0.05 && mag >= 1.0 && Time() - start >= 0.2 )
+			{
+				float v = Length( < bot.GetVelocity().x, bot.GetVelocity().y, 0.0 > )
+				if ( v > 40.0 )
+					file.natBot = file.natBot <= 0.0 ? v : file.natBot * 0.9 + v * 0.1
+			}
+		}
+		tickPos = bot.GetOrigin()
+		tickTime = Time()
+
+		if ( !signChecked && Time() - start >= DODGE_BOT_SIGN_CHECK_AT )
+		{
+			DodgeBot_CheckBotSign( st )
+			signChecked = true
+		}
+
+		DodgeBot_Perceive( st, p )
+		if ( Time() - start >= reactAfter && DodgeBot_ReactionDue( st ) )
+			return DODGE_LEG_REACT
+
+		if ( move == DODGE_MOVE_STAND || slices % 2 != 0 || Time() - start < 0.15 )
+			continue
+		if ( Distance2DSqr( bot.GetOrigin(), checkPos ) < DODGE_STUCK_DIST_SQR )
+		{
+			stuck++
+			if ( stuck >= DODGE_STUCK_CHECKS_NEEDED )
+				return DODGE_LEG_STUCK
+		}
+		else
+		{
+			stuck = 0
+		}
+		checkPos = bot.GetOrigin()
+	}
+	return DODGE_LEG_DONE
+}
+
+// Strafe leg on st.side, bent for range, kept on the leash and off walls.
+int function DodgeBot_SideLeg( DodgeState st, DodgeParams p, float duration, float rate, float blend, float reactAfter = DODGE_MIN_LEG_BEFORE_REACT )
+{
+	// Side first (wall probes read the current, near-facing yaw), then the bend
+	// for that side, so a flipped side never turns "close in" into "back off".
+	st.side = FlowstateDummy_PickOpenSide( st.bot, DodgeBot_LeashSide( st, st.side ) )
+	float yaw = DodgeBot_YawForSide( st.side, DodgeBot_RangeIntent( st ) )
+	DodgeBot_Face( st, yaw )
+	int result = DodgeBot_RunLeg( st, p, DODGE_MOVE_SIDE, 0, duration, rate, yaw, blend, reactAfter )
+	if ( result == DODGE_LEG_STUCK )
+		st.side = 1 - st.side
+	return result
+}
+
+// ---- Decisions ----------------------------------------------------------------
+// Movement is built from three leg kinds, the way players actually strafe:
+//   tap     a short burst that always plays out (the bait)
+//   medium  an ordinary strafe, can be cut by a fresh read
+//   commit  a long strafe, re-read after DODGE_LONG_REACT_AFTER
+// and the legs are chained into combos (DODGE_COMBO_*) that all end on a
+// commit toward the chosen side. It never crouches.
+
+float function DodgeBot_RangeScale( float dist )
+{
+	if ( dist < DODGE_CLOSE_RANGE )
+		return 0.85
+	if ( dist > DODGE_FAR_RANGE )
+		return 1.2
+	return 1.0
+}
+
+// One leg of a combo toward `side`. false = stop the combo (a wall, or a fresh
+// read cut the leg and the main loop reacts next).
+bool function DodgeBot_ComboLeg( DodgeState st, DodgeParams p, int side, float duration, float lo, float hi, float blend, float reactAfter )
+{
+	st.side = side
+	float rate = DodgeBot_Rate( st, DODGE_MOVE_SIDE, lo, hi )
+	return DodgeBot_SideLeg( st, p, duration, rate, blend, reactAfter ) == DODGE_LEG_DONE
+}
+
+bool function DodgeBot_Tap( DodgeState st, DodgeParams p, int side, float duration )
+{
+	return DodgeBot_ComboLeg( st, p, side, duration, 1.05, 1.2, 0.1, DODGE_NO_REACT )
+}
+
+bool function DodgeBot_Medium( DodgeState st, DodgeParams p, int side, float dist )
+{
+	float duration = DodgeBot_PickDuration( st, p.legMin, p.legMax ) * DodgeBot_RangeScale( dist )
+	return DodgeBot_ComboLeg( st, p, side, duration, 1.0, 1.12, 0.15, DODGE_MIN_LEG_BEFORE_REACT )
+}
+
+bool function DodgeBot_Commit( DodgeState st, DodgeParams p, int side, float dist )
+{
+	float duration = RandomFloatRange( p.longMin, p.longMax ) * DodgeBot_RangeScale( dist )
+	return DodgeBot_ComboLeg( st, p, side, duration, 0.95, 1.1, 0.18, DODGE_LONG_REACT_AFTER )
+}
+
+// Weighted pick; the combo just used is re-rolled once more often than not, so
+// the same pattern rarely shows up twice in a row.
+int function DodgeBot_PickCombo( DodgeState st, array<float> weights )
+{
+	int pick = DodgeBot_WeightedPick( weights )
+	if ( pick == st.lastCombo && DodgeBot_Chance( 0.6 ) )
+		pick = DodgeBot_WeightedPick( weights )
+	st.lastCombo = pick
+	return pick
+}
+
+int function DodgeBot_WeightedPick( array<float> weights )
+{
+	float total = 0.0
+	foreach ( float w in weights )
+		total += w
+	float roll = RandomFloatRange( 0.0, total )
+	for ( int i = 0; i < weights.len(); i++ )
+	{
+		roll -= weights[i]
+		if ( roll <= 0.0 )
+			return i
+	}
+	return DODGE_COMBO_LONG
+}
+
+// Plays a combo that ends on a commit toward `commitSide`.
+void function DodgeBot_RunCombo( DodgeState st, DodgeParams p, int combo, int commitSide, float dist )
+{
+	int c = commitSide
+	int o = 1 - c
+
+	switch ( combo )
+	{
+		case DODGE_COMBO_SL:
+			// Short tap the wrong way, then the real long strafe.
+			if ( DodgeBot_Tap( st, p, o, RandomFloatRange( p.shortMin, p.shortMax ) ) )
+				DodgeBot_Commit( st, p, c, dist )
+			return
+
+		case DODGE_COMBO_SSL:
+			// Short, short back, then long: you follow the second tap, it goes long the other way.
+			if ( !DodgeBot_Tap( st, p, c, RandomFloatRange( p.shortMin, p.shortMax ) ) )
+				return
+			if ( DodgeBot_Tap( st, p, o, RandomFloatRange( p.shortMin, p.shortMax ) ) )
+				DodgeBot_Commit( st, p, c, dist )
+			return
+
+		case DODGE_COMBO_ADAD:
+		{
+			// 2-4 uneven taps, the last one away from the commit, then commit.
+			int taps = RandomIntRangeInclusive( 2, 4 )
+			int side = ( taps % 2 == 1 ) ? o : c
+			for ( int i = 0; i < taps; i++ )
+			{
+				if ( !DodgeBot_Tap( st, p, side, DodgeBot_PickDuration( st, p.shortMin, p.legMin + 0.05 ) ) )
+					return
+				side = 1 - side
+			}
+			if ( DodgeBot_Chance( 0.6 ) )
+				DodgeBot_Commit( st, p, c, dist )
+			else
+				DodgeBot_Medium( st, p, c, dist )
+			return
+		}
+
+		case DODGE_COMBO_LRL:
+			// Wide swing: long one way, long straight back.
+			if ( DodgeBot_Commit( st, p, o, dist ) )
+				DodgeBot_Commit( st, p, c, dist )
+			return
+
+		case DODGE_COMBO_STOP:
+			// A beat standing still (aiming, reading), then a long strafe.
+			DodgeBot_Face( st, 0.0 )
+			if ( DodgeBot_RunLeg( st, p, DODGE_MOVE_STAND, 0, RandomFloatRange( 0.12, 0.3 ), 1.0, 0.0, 0.15 ) == DODGE_LEG_DONE )
+				DodgeBot_Commit( st, p, c, dist )
+			return
+
+		default:
+			DodgeBot_Commit( st, p, c, dist )
+			return
+	}
+}
+
+// Which way the reaction commits. Running into the crosshair always breaks
+// away from it; otherwise it reverses on the juke roll, else holds the side.
+int function DodgeBot_ReactSide( DodgeState st, DodgeParams p )
+{
+	if ( st.side == st.crossSide && !st.onBody )
+		return 1 - st.crossSide
+	if ( DodgeBot_Chance( p.jukeChance ) )
+		return 1 - st.side
+	return st.side
+}
+
+// The reaction itself: what a player does the moment they notice your aim.
+void function DodgeBot_React( DodgeState st, DodgeParams p, float dist )
+{
+	st.reactAt = -1.0
+
+	// Hurt and low: commit away from the crosshair to break the fight.
+	float hp = float( st.lastPool ) / float( st.maxPool )
+	if ( hp < 0.35 && ( Time() - st.lastHurtTime ) < 0.5 )
+	{
+		st.side = st.crossSide == 1 ? 0 : 1
+		DodgeBot_RetreatLeg( st, p )
+		return
+	}
+
+	DodgeBot_RunCombo( st, p, DodgeBot_PickCombo( st, p.reactWeights ), DodgeBot_ReactSide( st, p ), dist )
+}
+
+// Back-diagonal commit, long enough to leave the fight like a player going to heal.
+void function DodgeBot_RetreatLeg( DodgeState st, DodgeParams p )
+{
+	st.side = FlowstateDummy_PickOpenSide( st.bot, DodgeBot_LeashSide( st, st.side ) )
+	float yaw = DODGE_RANGE_YAW * 1.3 * ( st.side == 1 ? -1.0 : 1.0 )
+	DodgeBot_Face( st, yaw )
+	DodgeBot_RunLeg( st, p, DODGE_MOVE_SIDE, 0, RandomFloatRange( 0.7, 1.1 ), DodgeBot_Rate( st, DODGE_MOVE_SIDE, 1.0, 1.1 ), yaw, 0.2, DODGE_LONG_REACT_AFTER )
+}
+
+// In a fight with no fresh read: keep running combos, mostly switching sides.
+void function DodgeBot_FightLeg( DodgeState st, DodgeParams p, float dist )
+{
+	int commitSide = DodgeBot_Chance( 0.6 ) ? 1 - st.side : st.side
+	DodgeBot_RunCombo( st, p, DodgeBot_PickCombo( st, p.fightWeights ), commitSide, dist )
+}
+
+// Not under pressure: long relaxed strafes, the odd pause, and depth steps
+// that pull it back to its preferred range.
+void function DodgeBot_NeutralLeg( DodgeState st, DodgeParams p )
+{
+	entity bot = st.bot
+	int intent = DodgeBot_RangeIntent( st )
+	float roll = RandomFloatRange( 0.0, 1.0 )
+
+	if ( roll < 0.12 )
+	{
+		DodgeBot_Face( st, 0.0 )
+		DodgeBot_RunLeg( st, p, DODGE_MOVE_STAND, 0, RandomFloatRange( 0.25, 0.6 ), 1.0, 0.0, 0.3 )
+		return
+	}
+	if ( roll < 0.27 && intent != 0 )
+	{
+		DodgeBot_Face( st, 0.0 )
+		vector fwd = AnglesToForward( bot.GetAngles() ) * float( intent )
+		if ( !FlowstateDummy_IsDirBlocked( bot, fwd ) )
+		{
+			DodgeBot_RunLeg( st, p, DODGE_MOVE_DEPTH, intent, RandomFloatRange( 0.3, 0.6 ), DodgeBot_Rate( st, DODGE_MOVE_DEPTH, 0.9, 1.05 ), 0.0, 0.3 )
+			return
+		}
+	}
+	if ( DodgeBot_Chance( 0.65 ) )
+		st.side = 1 - st.side
+	float duration = RandomFloatRange( p.longMin, p.longMax * 1.2 )
+	DodgeBot_SideLeg( st, p, duration, DodgeBot_Rate( st, DODGE_MOVE_SIDE, 0.9, 1.05 ), 0.3 )
+}
+
+void function DodgeBot_Forget( entity bot )
+{
+	if ( bot in file.states )
+		delete file.states[ bot ]
+}
+
+void function DodgeBot_Brain( DodgeState st )
+{
+	entity bot = st.bot
+	entity owner = st.owner
+	bot.EndSignal( "OnDestroy" )
+	bot.EndSignal( "OnDeath" )
+	bot.EndSignal( "StopBotStrafe" )
+	bot.EndSignal( "DodgeBot_Stop" )
+	owner.EndSignal( "OnDestroy" )
+
+	OnThreadEnd(
+		function() : ( bot )
+		{
+			// The fire loop and program guard stop once the state is gone.
+			DodgeBot_Forget( bot )
+		}
+	)
+
+	printt( format( "[DODGEBOT] took over %s for %s (range %.0f, fire %s)", string( bot ), owner.GetPlayerName(), st.prefDist,
+		st.isBot ? string( DodgeBot_GetFire( owner ) ) : "-" ) )
+
+	while ( IsValid( bot ) && IsAlive( bot ) )
+	{
+		int level = DodgeBot_GetLevel( owner )
+		if ( level <= 0 )
+			return
+		DodgeParams p = DodgeBot_Params( level )
+
+		if ( st.isBot )
+		{
+			// Strafing off in Lab, or nobody to fight: stand, keep aiming.
+			if ( !IsAlive( owner ) || AimTrainer_TargetsStatic( owner ) )
+			{
+				st.reactAt = -1.0
+				DodgeBot_RunBotLeg( st, p, DODGE_MOVE_STAND, 0, 0.25, 0.0, DODGE_NO_REACT )
+				continue
+			}
+			// Separate mode, off by default; the dodge brain below is untouched.
+			if ( RealFight_IsOn( owner ) )
+			{
+				RealFight_Think( st, p )
+				continue
+			}
+			DodgeBot_Perceive( st, p )
+			float botDist = Distance2D( bot.GetOrigin(), owner.GetOrigin() )
+			if ( DodgeBot_ReactionDue( st ) )
+				DodgeBot_React( st, p, botDist )
+			else if ( Time() < st.engagedUntil )
+				DodgeBot_FightLeg( st, p, botDist )
+			else
+				DodgeBot_NeutralLeg( st, p )
+			continue
+		}
+
+		if ( !IsAlive( owner ) || FlowstateDummy_IsStatic( bot ) )
+		{
+			st.reactAt = -1.0
+			FlowstateDummy_HoldStill( bot, owner )
+			continue
+		}
+
+		// Launched or falling: let the floor catch it, as the stock brains do.
+		if ( !IsValid( bot.GetGroundEntity() ) )
+		{
+			if ( FlowstateDummy_ConformToGround( bot ) && IsValid( bot.GetGroundEntity() ) )
+				continue
+			FlowstateDummy_PlayActivityIfChanged( bot, "ACT_FALL", FlowstateDummy_GetSpeedMult( bot ) )
+			wait 0.1
+			FlowstateDummy_ConformToGround( bot )
+			continue
+		}
+
+		DodgeBot_Perceive( st, p )
+		float dist = Distance2D( bot.GetOrigin(), owner.GetOrigin() )
+
+		if ( DodgeBot_ReactionDue( st ) )
+			DodgeBot_React( st, p, dist )
+		else if ( Time() < st.engagedUntil )
+			DodgeBot_FightLeg( st, p, dist )
+		else
+			DodgeBot_NeutralLeg( st, p )
+	}
+}
+#endif

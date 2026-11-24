@@ -1,0 +1,45 @@
+// DodgeBot UI, client side: relays the server's "open" to the UI VM, and after
+// each level load asks the UI to resend the saved settings (the server forgets
+// DodgeBot settings on every map; the UI VM keeps them for the whole session).
+
+global function ClientCodeCallback_Trainer_DodgeBotUI_ModInit
+global function ServerCallback_DodgeBotUI_Open
+
+void function ClientCodeCallback_Trainer_DodgeBotUI_ModInit()
+{
+	// Must match the server's registration (same name, same spot).
+	Remote_RegisterClientFunction( "ServerCallback_DodgeBotUI_Open" )
+	AddCallback_OnClientScriptInit( DodgeBotUI_OnClientScriptInit )
+	printt( "[DODGEBOTUI] client ModInit" )
+}
+
+void function ServerCallback_DodgeBotUI_Open()
+{
+	try
+	{
+		RunUIScript( "DodgeBotUI_Open" )
+	}
+	catch ( eOpen )
+	{
+		printt( format( "[DODGEBOTUI] open failed: %s", string( eOpen ) ) )
+	}
+}
+
+void function DodgeBotUI_OnClientScriptInit( entity player )
+{
+	thread DodgeBotUI_PushLater()
+}
+
+void function DodgeBotUI_PushLater()
+{
+	// Give the server time to finish loading the level and the Lab.
+	wait 3.0
+	try
+	{
+		RunUIScript( "DodgeBotUI_PushSaved" )
+	}
+	catch ( ePush )
+	{
+		printt( format( "[DODGEBOTUI] resend failed: %s", string( ePush ) ) )
+	}
+}

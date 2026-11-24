@@ -1,0 +1,477 @@
+// DodgeBot UI: a settings window for the DodgeBot mod.
+//
+// Open it with the console command "dodgebotui" (bind it: bind F10 dodgebotui).
+// Every change is sent at once as the ordinary DodgeBot console command, so
+// this mod only drives DodgeBot and never touches its code. The values are
+// kept here, in the UI VM, for the whole game session, and resent after every
+// level load because the server forgets DodgeBot settings on each map.
+// Restarting the game brings back the defaults.
+
+global function UICodeCallback_Trainer_DodgeBotUI_ModInit
+global function DodgeBotUI_Open
+global function DodgeBotUI_PushSaved
+
+const asset DODGEBOTUI_MENU_FILE = $"resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu"
+const string DODGEBOTUI_MENU_NAME = "DodgeBotUI_SettingsMenu"
+const int DODGEBOTUI_SEG_W = 120        // option segment width, matches the layout
+const int DODGEBOTUI_FILL_W = 172       // stepper bar width, matches the layout
+
+// Speed modes, in option order; DODGEBOTUI_SPEED_CUSTOM is the stepper.
+const int DODGEBOTUI_SPEED_OFF = 0
+const int DODGEBOTUI_SPEED_UNARMED = 1
+const int DODGEBOTUI_SPEED_HIPFIRE = 2
+const int DODGEBOTUI_SPEED_ADS = 3
+const int DODGEBOTUI_SPEED_CUSTOM = 4
+
+struct DodgeBotUIOption
+{
+	string name
+	array<string> labels
+}
+
+struct DodgeBotUIStepper
+{
+	string name
+	int minValue
+	int maxValue
+	int step
+	string suffix
+}
+
+struct
+{
+	var menu = null
+	array<DodgeBotUIOption> options
+	array<DodgeBotUIStepper> steppers
+
+	// Defaults are the DodgeBot defaults.
+	int level = 2
+	int speedMode = DODGEBOTUI_SPEED_OFF
+	int customSpeed = 160
+	bool respawnOn = true
+	int respawnMin = 10
+	int respawnMax = 17
+	bool fireOn = true
+	int ads = 1              // 0 hipfire, 1 auto, 2 always
+	int aim = 50
+	int realFight = 0        // separate "real fight" brain
+	int realCover = 1        // 0 off, 1 hurt/reload, 2 often
+	int realSlide = 1
+
+	bool changed = false     // anything set this session; only then resend on load
+	string lastSent = ""
+} file
+
+void function UICodeCallback_Trainer_DodgeBotUI_ModInit()
+{
+	// Mod ModInits run just before the menus are built; the menu init loop
+	// then calls DodgeBotUI_InitMenu along with the stock menus.
+	AddMenu( DODGEBOTUI_MENU_NAME, DODGEBOTUI_MENU_FILE, DodgeBotUI_InitMenu, "DodgeBot" )
+	printt( "[DODGEBOTUI] UI ModInit, menu added" )
+}
+
+// ---- Menu setup -------------------------------------------------------------
+
+void function DodgeBotUI_InitMenu( var menu )
+{
+	file.menu = menu
+	AddMenuEventHandler( menu, eUIEvent.MENU_OPEN, DodgeBotUI_OnOpen )
+	AddMenuEventHandler( menu, eUIEvent.MENU_NAVIGATE_BACK, DodgeBotUI_OnBack )
+
+	DodgeBotUI_SetLabel( "TitleLabel", "DodgeBot 躲子弹靶子" )
+	DodgeBotUI_SetLabel( "TitleSubLabel", "设置（改完立即生效）" )
+	DodgeBotUI_SetLabel( "SectionMoveTitle", "躲避与移速" )
+	DodgeBotUI_SetLabel( "SectionRespawnTitle", "击杀后刷新" )
+	DodgeBotUI_SetLabel( "SectionLegendTitle", "传奇靶子" )
+	DodgeBotUI_SetLabel( "SectionRealTitle", "真人对战（只对传奇身体）" )
+	DodgeBotUI_SetLabel( "FooterCloseLabel", "关闭" )
+	DodgeBotUI_SetLabel( "ResetLabel", "恢复默认" )
+	DodgeBotUI_SetLabel( "StatusLabel", "" )
+
+	DodgeBotUI_AddOption( "Level", "难度", "反应速度和骗招比例", [ "关闭", "休闲", "排位", "职业" ] )
+	DodgeBotUI_AddOption( "SpeedPreset", "移速挡位", "跟随 Lab 扫射速度滑块，或固定 Apex 移速", [ "跟随滑块", "空手 199", "腰射 173", "开镜 130" ] )
+	DodgeBotUI_AddStepper( "CustomSpeed", "自定义移速", "点 < > 改用这个速度（u/s）", 50, 400, 5, "" )
+	DodgeBotUI_AddOption( "Respawn", "360° 随机刷新", "击杀后刷在你周围，练找人", [ "关", "开" ] )
+	DodgeBotUI_AddStepper( "RespawnMin", "最近距离", "米", 3, 60, 1, " m" )
+	DodgeBotUI_AddStepper( "RespawnMax", "最远距离", "米", 3, 60, 1, " m" )
+	DodgeBotUI_AddOption( "Fire", "还手", "传奇身体的靶子会开枪打你", [ "关", "开" ] )
+	DodgeBotUI_AddOption( "Ads", "开镜", "自动：10 米外开镜，10 米内腰射", [ "腰射", "自动", "一直开镜" ] )
+	DodgeBotUI_AddStepper( "Aim", "枪法", "0 乱喷、跟枪慢，100 很准", 0, 100, 5, "" )
+	DodgeBotUI_AddOption( "RealFight", "真人对战", "会找掩体、滑铲跳、找你；关掉就是原来的躲子弹", [ "关", "开" ] )
+	DodgeBotUI_AddOption( "RealCover", "掩体", "积极：刚挨打也会考虑躲", [ "不用", "残血换弹", "积极" ] )
+	DodgeBotUI_AddOption( "RealSlide", "滑铲跳", "冲刺、滑铲、起跳换位置", [ "关", "开" ] )
+
+	Hud_AddEventHandler( Hud_GetChild( menu, "GoBackButton" ), UIE_CLICK, DodgeBotUI_OnCloseClick )
+	Hud_AddEventHandler( Hud_GetChild( menu, "ResetButton" ), UIE_CLICK, DodgeBotUI_OnResetClick )
+
+	SetMenuReceivesCommands( menu, false )
+	SetGamepadCursorEnabled( menu, true )
+	printt( "[DODGEBOTUI] settings menu init" )
+}
+
+void function DodgeBotUI_SetLabel( string name, string text )
+{
+	Hud_SetText( Hud_GetChild( file.menu, name ), text )
+}
+
+void function DodgeBotUI_AddOption( string name, string title, string hint, array<string> labels )
+{
+	DodgeBotUIOption row
+	row.name = name
+	row.labels = labels
+	file.options.append( row )
+
+	DodgeBotUI_SetLabel( name + "Text", title )
+	DodgeBotUI_SetLabel( name + "Hint", hint )
+	for ( int i = 0; i < labels.len(); i++ )
+	{
+		DodgeBotUI_SetLabel( format( "%sSegText%d", name, i ), labels[i] )
+		int pick = i
+		Hud_AddEventHandler( Hud_GetChild( file.menu, format( "%sSeg%d", name, i ) ), UIE_CLICK,
+			void function( var button ) : ( name, pick )
+			{
+				DodgeBotUI_OnOption( name, pick )
+			}
+		)
+	}
+}
+
+void function DodgeBotUI_AddStepper( string name, string title, string hint, int minValue, int maxValue, int step, string suffix )
+{
+	DodgeBotUIStepper row
+	row.name = name
+	row.minValue = minValue
+	row.maxValue = maxValue
+	row.step = step
+	row.suffix = suffix
+	file.steppers.append( row )
+
+	DodgeBotUI_SetLabel( name + "Text", title )
+	DodgeBotUI_SetLabel( name + "Hint", hint )
+	Hud_AddEventHandler( Hud_GetChild( file.menu, name + "Dec" ), UIE_CLICK,
+		void function( var button ) : ( row )
+		{
+			DodgeBotUI_OnStep( row, -1 )
+		}
+	)
+	Hud_AddEventHandler( Hud_GetChild( file.menu, name + "Inc" ), UIE_CLICK,
+		void function( var button ) : ( row )
+		{
+			DodgeBotUI_OnStep( row, 1 )
+		}
+	)
+}
+
+// ---- Open / close -------------------------------------------------------------
+
+void function DodgeBotUI_Open()
+{
+	if ( file.menu == null )
+	{
+		printt( "[DODGEBOTUI] Open: menu was not built (layout file missing?)" )
+		return
+	}
+	CloseAllMenus()
+	EmitUISound( "UI_Menu_FriendInspect" )
+	AdvanceMenu( file.menu )
+}
+
+void function DodgeBotUI_OnOpen()
+{
+	DodgeBotUI_Refresh()
+}
+
+void function DodgeBotUI_OnBack()
+{
+	CloseAllMenus()
+}
+
+void function DodgeBotUI_OnCloseClick( var button )
+{
+	CloseAllMenus()
+}
+
+void function DodgeBotUI_OnResetClick( var button )
+{
+	file.level = 2
+	file.speedMode = DODGEBOTUI_SPEED_OFF
+	file.customSpeed = 160
+	file.respawnOn = true
+	file.respawnMin = 10
+	file.respawnMax = 17
+	file.fireOn = true
+	file.ads = 1
+	file.aim = 50
+	file.realFight = 0
+	file.realCover = 1
+	file.realSlide = 1
+	file.changed = true
+	DodgeBotUI_SendAll()
+	DodgeBotUI_Refresh()
+}
+
+// ---- Changes ------------------------------------------------------------------
+
+void function DodgeBotUI_OnOption( string name, int pick )
+{
+	switch ( name )
+	{
+		case "Level":
+			file.level = pick
+			DodgeBotUI_SendLevel()
+			break
+		case "SpeedPreset":
+			file.speedMode = pick
+			DodgeBotUI_SendSpeed()
+			break
+		case "Respawn":
+			file.respawnOn = pick == 1
+			DodgeBotUI_SendRespawn()
+			break
+		case "Fire":
+			file.fireOn = pick == 1
+			DodgeBotUI_SendFire()
+			break
+		case "Ads":
+			file.ads = pick
+			DodgeBotUI_SendAds()
+			break
+		case "RealFight":
+			file.realFight = pick
+			DodgeBotUI_SendReal()
+			break
+		case "RealCover":
+			file.realCover = pick
+			DodgeBotUI_SendReal()
+			break
+		case "RealSlide":
+			file.realSlide = pick
+			DodgeBotUI_SendReal()
+			break
+	}
+	file.changed = true
+	DodgeBotUI_Refresh()
+}
+
+void function DodgeBotUI_OnStep( DodgeBotUIStepper row, int dir )
+{
+	int value = DodgeBotUI_StepperValue( row.name ) + dir * row.step
+	value = maxint( row.minValue, minint( row.maxValue, value ) )
+	switch ( row.name )
+	{
+		case "CustomSpeed":
+			file.customSpeed = value
+			file.speedMode = DODGEBOTUI_SPEED_CUSTOM
+			DodgeBotUI_SendSpeed()
+			break
+		case "RespawnMin":
+			file.respawnMin = value
+			if ( file.respawnMax < value )
+				file.respawnMax = value
+			if ( file.respawnOn )
+				DodgeBotUI_SendRespawn()
+			break
+		case "RespawnMax":
+			file.respawnMax = value
+			if ( file.respawnMin > value )
+				file.respawnMin = value
+			if ( file.respawnOn )
+				DodgeBotUI_SendRespawn()
+			break
+		case "Aim":
+			file.aim = value
+			DodgeBotUI_SendAim()
+			break
+	}
+	file.changed = true
+	DodgeBotUI_Refresh()
+}
+
+int function DodgeBotUI_StepperValue( string name )
+{
+	switch ( name )
+	{
+		case "CustomSpeed":
+			return file.customSpeed
+		case "RespawnMin":
+			return file.respawnMin
+		case "RespawnMax":
+			return file.respawnMax
+		case "Aim":
+			return file.aim
+	}
+	return 0
+}
+
+int function DodgeBotUI_OptionValue( string name )
+{
+	switch ( name )
+	{
+		case "Level":
+			return file.level
+		case "SpeedPreset":
+			return file.speedMode   // custom (4) lights no segment
+		case "Respawn":
+			return file.respawnOn ? 1 : 0
+		case "Fire":
+			return file.fireOn ? 1 : 0
+		case "Ads":
+			return file.ads
+		case "RealFight":
+			return file.realFight
+		case "RealCover":
+			return file.realCover
+		case "RealSlide":
+			return file.realSlide
+	}
+	return -1
+}
+
+// ---- Commands to the DodgeBot mod -----------------------------------------------
+
+void function DodgeBotUI_Send( string cmd )
+{
+	if ( !IsFullyConnected() )
+		return
+	ClientCommand( cmd )
+	file.lastSent = cmd
+	printt( "[DODGEBOTUI] sent: " + cmd )
+}
+
+void function DodgeBotUI_SendLevel()
+{
+	DodgeBotUI_Send( format( "dodgebot %d", file.level ) )
+}
+
+void function DodgeBotUI_SendSpeed()
+{
+	switch ( file.speedMode )
+	{
+		case DODGEBOTUI_SPEED_UNARMED:
+			DodgeBotUI_Send( "dodgebot speed unarmed" )
+			return
+		case DODGEBOTUI_SPEED_HIPFIRE:
+			DodgeBotUI_Send( "dodgebot speed hipfire" )
+			return
+		case DODGEBOTUI_SPEED_ADS:
+			DodgeBotUI_Send( "dodgebot speed ads" )
+			return
+		case DODGEBOTUI_SPEED_CUSTOM:
+			DodgeBotUI_Send( format( "dodgebot speed %d", file.customSpeed ) )
+			return
+	}
+	DodgeBotUI_Send( "dodgebot speed off" )
+}
+
+void function DodgeBotUI_SendRespawn()
+{
+	if ( file.respawnOn )
+		DodgeBotUI_Send( format( "dodgebot respawn %d %d", file.respawnMin, file.respawnMax ) )
+	else
+		DodgeBotUI_Send( "dodgebot respawn off" )
+}
+
+void function DodgeBotUI_SendFire()
+{
+	DodgeBotUI_Send( file.fireOn ? "dodgebot fire on" : "dodgebot fire off" )
+}
+
+void function DodgeBotUI_SendAds()
+{
+	DodgeBotUI_Send( format( "dodgebot ads %d", file.ads ) )
+}
+
+void function DodgeBotUI_SendReal()
+{
+	DodgeBotUI_Send( format( "realfight cover %d", file.realCover ) )
+	DodgeBotUI_Send( format( "realfight slide %d", file.realSlide ) )
+	DodgeBotUI_Send( format( "realfight %d", file.realFight ) )
+}
+
+void function DodgeBotUI_SendAim()
+{
+	DodgeBotUI_Send( format( "dodgebot aim %d", file.aim ) )
+}
+
+void function DodgeBotUI_SendAll()
+{
+	DodgeBotUI_SendLevel()
+	DodgeBotUI_SendSpeed()
+	DodgeBotUI_SendRespawn()
+	DodgeBotUI_SendFire()
+	DodgeBotUI_SendAds()
+	DodgeBotUI_SendReal()
+	DodgeBotUI_SendAim()
+}
+
+// After a level load (from the client script): the new server starts from the
+// DodgeBot defaults, so put back what was set in this session.
+void function DodgeBotUI_PushSaved()
+{
+	if ( !file.changed )
+		return
+	printt( "[DODGEBOTUI] level loaded, resending saved settings" )
+	DodgeBotUI_SendAll()
+}
+
+// ---- Drawing ------------------------------------------------------------------
+
+void function DodgeBotUI_Refresh()
+{
+	if ( file.menu == null )
+		return
+
+	foreach ( DodgeBotUIOption row in file.options )
+	{
+		int value = DodgeBotUI_OptionValue( row.name )
+		for ( int i = 0; i < row.labels.len(); i++ )
+		{
+			bool on = i == value
+			Hud_SetVisible( Hud_GetChild( file.menu, format( "%sSegFill%d", row.name, i ) ), on )
+			var text = Hud_GetChild( file.menu, format( "%sSegText%d", row.name, i ) )
+			if ( on )
+				Hud_SetColor( text, 6, 20, 13, 255 )
+			else
+				Hud_SetColor( text, 169, 184, 175, 255 )
+		}
+	}
+
+	foreach ( DodgeBotUIStepper row in file.steppers )
+	{
+		int value = DodgeBotUI_StepperValue( row.name )
+		var valueLabel = Hud_GetChild( file.menu, row.name + "Value" )
+		Hud_SetText( valueLabel, format( "%d%s", value, row.suffix ) )
+		bool active = DodgeBotUI_StepperActive( row.name )
+		if ( active )
+			Hud_SetColor( valueLabel, 61, 218, 138, 255 )
+		else
+			Hud_SetColor( valueLabel, 122, 134, 127, 255 )
+
+		float span = float( row.maxValue - row.minValue )
+		int fillW = int( DODGEBOTUI_FILL_W * ( float( value - row.minValue ) / span ) )
+		var fill = Hud_GetChild( file.menu, row.name + "Fill" )
+		Hud_SetWidth( fill, fillW )
+		Hud_SetVisible( fill, fillW > 0 && active )
+	}
+
+	string status = IsFullyConnected() ? "" : "没在游戏里：改动会在进图后发送"
+	if ( status == "" && file.lastSent != "" )
+		status = "已发送: " + file.lastSent
+	DodgeBotUI_SetLabel( "StatusLabel", status )
+}
+
+// Greyed out when the value is not in use right now.
+bool function DodgeBotUI_StepperActive( string name )
+{
+	switch ( name )
+	{
+		case "CustomSpeed":
+			return file.speedMode == DODGEBOTUI_SPEED_CUSTOM
+		case "RespawnMin":
+		case "RespawnMax":
+			return file.respawnOn
+		case "Aim":
+			return file.fireOn
+	}
+	return true
+}

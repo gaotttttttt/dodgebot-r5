@@ -1,0 +1,6 @@
+When: "SERVER"
+Scripts:
+[
+	trainer_dodgebot/sv_dodgebot.gnut
+	trainer_dodgebot/sv_realfight.gnut
+]

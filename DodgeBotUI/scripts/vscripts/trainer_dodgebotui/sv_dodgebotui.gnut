@@ -1,0 +1,98 @@
+// DodgeBot UI, server side: the "dodgebotui" console command opens the
+// settings window on that player's screen. The window itself (UI VM) sends the
+// ordinary "dodgebot ..." console commands, so the DodgeBot mod is unchanged.
+
+global function CodeCallback_Trainer_DodgeBotUI_ModInit
+
+#if SERVER
+// mod.vdf id "Trainer_DodgeBotUI", lowercased: the id the Lab MOD row sends.
+const string DODGEBOTUI_CAFEMOD_ID = "trainer_dodgebotui"
+#endif
+
+void function CodeCallback_Trainer_DodgeBotUI_ModInit()
+{
+	// Same name, same spot, in SERVER and CLIENT: both VMs run mod ModInits
+	// right after remote-function registration opens.
+	Remote_RegisterClientFunction( "ServerCallback_DodgeBotUI_Open" )
+
+	#if SERVER
+		AddClientCommandCallback( "dodgebotui", DodgeBotUI_Cmd )
+		AddClientCommandCallback( "DODGEBOTUI", DodgeBotUI_Cmd )
+		AddClientCommandCallback( "DodgeBotUI", DodgeBotUI_Cmd )
+		DodgeBotUI_RegisterModRow()
+		printt( "[DODGEBOTUI] server ModInit" )
+	#endif
+}
+
+#if SERVER
+void function DodgeBotUI_Cmd( entity player, array<string> args )
+{
+	if ( !IsValid( player ) || !player.IsPlayer() )
+		return
+	DodgeBotUI_OpenFor( player )
+}
+
+void function DodgeBotUI_OpenFor( entity player )
+{
+	printt( format( "[DODGEBOTUI] open for %s", player.GetPlayerName() ) )
+	Remote_CallFunction_NonReplay( player, "ServerCallback_DodgeBotUI_Open" )
+}
+
+// The MOD tab numbers its rows on the client, one per enabled scripted mod in
+// load order, server-realm mods skipped. Pin this mod's row to that number so
+// its toggle sticks (same scheme as DodgeBot).
+int function DodgeBotUI_ClientSlotIndex()
+{
+	int idx = CafeMod_GetCount()
+	foreach ( InstalledMod mod in ModList_Get() )
+	{
+		if ( idx >= CAFEMOD_MAX )
+			return -1
+		if ( mod.id.tolower() == DODGEBOTUI_CAFEMOD_ID )
+			return idx
+		if ( !mod.enabled || !mod.hasScripts || mod.realm.tolower() == "server" )
+			continue
+		idx++
+	}
+	return -1
+}
+
+void function DodgeBotUI_RegisterModRow()
+{
+	int idx = DodgeBotUI_ClientSlotIndex()
+	if ( idx < 0 )
+	{
+		printt( "[DODGEBOTUI] MOD row: own entry not in the mod list" )
+		return
+	}
+	CafeMod_DefineDynamic( idx, DODGEBOTUI_CAFEMOD_ID, "DodgeBot UI" )
+	CafeMod_RegisterPackage( DODGEBOTUI_CAFEMOD_ID, "DodgeBot UI", DodgeBotUI_OnModEnable, DodgeBotUI_OnModDisable, false )
+	printt( format( "[DODGEBOTUI] MOD row pinned to slot %d", idx ) )
+}
+
+// The row works as a button: switching it on opens the window for the host,
+// then it springs back to off so the next press opens it again.
+void function DodgeBotUI_OnModEnable()
+{
+	foreach ( entity player in GetPlayerArray() )
+	{
+		if ( !IsValid( player ) || player.IsBot() )
+			continue
+		DodgeBotUI_OpenFor( player )
+		thread DodgeBotUI_ReleaseRow( player )
+		return
+	}
+}
+
+void function DodgeBotUI_ReleaseRow( entity player )
+{
+	player.EndSignal( "OnDestroy" )
+	wait 0.3
+	if ( CafeMod_SetEnabled( DODGEBOTUI_CAFEMOD_ID, false, player ) )
+		CafeMod_SyncToAll()
+}
+
+void function DodgeBotUI_OnModDisable()
+{
+}
+#endif

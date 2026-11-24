@@ -1,0 +1,17 @@
+When: "SERVER"
+Scripts:
+[
+	trainer_dodgebotui/sv_dodgebotui.gnut
+]
+
+When: "CLIENT"
+Scripts:
+[
+	trainer_dodgebotui/cl_dodgebotui.gnut
+]
+
+When: "UI"
+Scripts:
+[
+	trainer_dodgebotui/ui_dodgebotui.gnut
+]

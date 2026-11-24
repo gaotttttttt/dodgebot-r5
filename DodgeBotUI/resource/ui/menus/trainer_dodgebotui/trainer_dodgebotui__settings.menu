@@ -1,0 +1,3250 @@
+resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
+{
+	menu
+	{
+		ControlName	Frame
+		xpos	0
+		ypos	0
+		zpos	3
+		wide	f0
+		tall	f0
+		autoResize	0
+		pinCorner	0
+		visible	1
+		enabled	1
+		tabPosition	0
+		PaintBackgroundType	0
+		infocus_bgcolor_override	"0 0 0 0"
+		outoffocus_bgcolor_override	"0 0 0 0"
+		modal	1
+		disableDpad	0
+
+		DarkenBackground
+		{
+			ControlName	Label
+			xpos	0
+			ypos	0
+			wide	%100
+			tall	%100
+			labelText	""
+			bgcolor_override	"0 0 0 170"
+			visible	1
+			paintbackground	1
+		}
+
+		MainFrame
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	1180
+			tall	944
+			fillColor	"12 17 14 245"
+			drawColor	"12 17 14 245"
+			visible	1
+			zpos	0
+			pin_to_sibling	DarkenBackground
+			pin_corner_to_sibling	CENTER
+			pin_to_sibling_corner	CENTER
+		}
+
+		HeaderBand
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	1180
+			tall	64
+			fillColor	"6 10 8 230"
+			drawColor	"6 10 8 230"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP
+			pin_to_sibling_corner	TOP
+		}
+
+		HeaderAccent
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	6
+			tall	64
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	1
+			zpos	2
+			pin_to_sibling	HeaderBand
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		TitleLabel
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-28
+			ypos	-9
+			wide	600
+			tall	28
+			fontHeight	26
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	HeaderBand
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		TitleSubLabel
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	TitleLabel
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		SectionMoveTitle
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-28
+			ypos	-78
+			wide	400
+			tall	32
+			fontHeight	17
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		SectionMoveRule
+		{
+			ControlName	ImagePanel
+			xpos	-28
+			ypos	-110
+			wide	1120
+			tall	2
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	1
+			zpos	3
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		LevelRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-116
+			wide	1176
+			tall	52
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		LevelText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-3
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	LevelRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		LevelHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	LevelText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		LevelBody
+		{
+			ControlName	ImagePanel
+			xpos	-32
+			ypos	0
+			wide	480
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	LevelRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		LevelSegFill0
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSegText0
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSeg0
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSegFill1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSegText1
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSeg1
+		{
+			ControlName	RuiButton
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSegFill2
+		{
+			ControlName	ImagePanel
+			xpos	-240
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSegText2
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-240
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSeg2
+		{
+			ControlName	RuiButton
+			xpos	-240
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSegFill3
+		{
+			ControlName	ImagePanel
+			xpos	-360
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSegText3
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-360
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSeg3
+		{
+			ControlName	RuiButton
+			xpos	-360
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSplit1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSplit2
+		{
+			ControlName	ImagePanel
+			xpos	-240
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		LevelSplit3
+		{
+			ControlName	ImagePanel
+			xpos	-360
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	LevelBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-168
+			wide	1176
+			tall	52
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		SpeedPresetText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-3
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	SpeedPresetRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		SpeedPresetHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	SpeedPresetText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		SpeedPresetBody
+		{
+			ControlName	ImagePanel
+			xpos	-32
+			ypos	0
+			wide	480
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	SpeedPresetRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		SpeedPresetSegFill0
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSegText0
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSeg0
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSegFill1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSegText1
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSeg1
+		{
+			ControlName	RuiButton
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSegFill2
+		{
+			ControlName	ImagePanel
+			xpos	-240
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSegText2
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-240
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSeg2
+		{
+			ControlName	RuiButton
+			xpos	-240
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSegFill3
+		{
+			ControlName	ImagePanel
+			xpos	-360
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSegText3
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-360
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSeg3
+		{
+			ControlName	RuiButton
+			xpos	-360
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSplit1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSplit2
+		{
+			ControlName	ImagePanel
+			xpos	-240
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		SpeedPresetSplit3
+		{
+			ControlName	ImagePanel
+			xpos	-360
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	SpeedPresetBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		CustomSpeedRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-220
+			wide	1176
+			tall	52
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		CustomSpeedText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-3
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	CustomSpeedRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		CustomSpeedHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	CustomSpeedText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		CustomSpeedBody
+		{
+			ControlName	ImagePanel
+			xpos	-118
+			ypos	0
+			wide	240
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	CustomSpeedRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		CustomSpeedFill
+		{
+			ControlName	ImagePanel
+			xpos	-34
+			ypos	0
+			wide	0
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	CustomSpeedBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		CustomSpeedValue
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-32
+			ypos	0
+			wide	80
+			tall	34
+			fontHeight	20
+			textAlignment	east
+			fgcolor_override	"61 218 138 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	CustomSpeedRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		CustomSpeedDecChip
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fillColor	"24 33 28 230"
+			drawColor	"24 33 28 230"
+			visible	1
+			zpos	4
+			pin_to_sibling	CustomSpeedBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		CustomSpeedIncChip
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fillColor	"24 33 28 230"
+			drawColor	"24 33 28 230"
+			visible	1
+			zpos	4
+			pin_to_sibling	CustomSpeedBody
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		CustomSpeedDecText
+		{
+			ControlName	Label
+			labelText	<
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fontHeight	18
+			textAlignment	center
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	CustomSpeedBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		CustomSpeedDec
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	CustomSpeedBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		CustomSpeedIncText
+		{
+			ControlName	Label
+			labelText	>
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fontHeight	18
+			textAlignment	center
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	CustomSpeedBody
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		CustomSpeedInc
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	CustomSpeedBody
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		SectionRespawnTitle
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-28
+			ypos	-282
+			wide	400
+			tall	32
+			fontHeight	17
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		SectionRespawnRule
+		{
+			ControlName	ImagePanel
+			xpos	-28
+			ypos	-314
+			wide	1120
+			tall	2
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	1
+			zpos	3
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RespawnRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-320
+			wide	1176
+			tall	52
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RespawnText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-3
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	RespawnRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RespawnHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	RespawnText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		RespawnBody
+		{
+			ControlName	ImagePanel
+			xpos	-32
+			ypos	0
+			wide	240
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	RespawnRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RespawnSegFill0
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	RespawnBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnSegText0
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RespawnBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnSeg0
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RespawnBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnSegFill1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	RespawnBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnSegText1
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RespawnBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnSeg1
+		{
+			ControlName	RuiButton
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RespawnBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnSplit1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	RespawnBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnMinRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-372
+			wide	1176
+			tall	52
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RespawnMinText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-3
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	RespawnMinRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RespawnMinHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	RespawnMinText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		RespawnMinBody
+		{
+			ControlName	ImagePanel
+			xpos	-118
+			ypos	0
+			wide	240
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	RespawnMinRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RespawnMinFill
+		{
+			ControlName	ImagePanel
+			xpos	-34
+			ypos	0
+			wide	0
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	RespawnMinBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnMinValue
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-32
+			ypos	0
+			wide	80
+			tall	34
+			fontHeight	20
+			textAlignment	east
+			fgcolor_override	"61 218 138 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RespawnMinRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RespawnMinDecChip
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fillColor	"24 33 28 230"
+			drawColor	"24 33 28 230"
+			visible	1
+			zpos	4
+			pin_to_sibling	RespawnMinBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnMinIncChip
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fillColor	"24 33 28 230"
+			drawColor	"24 33 28 230"
+			visible	1
+			zpos	4
+			pin_to_sibling	RespawnMinBody
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RespawnMinDecText
+		{
+			ControlName	Label
+			labelText	<
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fontHeight	18
+			textAlignment	center
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RespawnMinBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnMinDec
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RespawnMinBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnMinIncText
+		{
+			ControlName	Label
+			labelText	>
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fontHeight	18
+			textAlignment	center
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RespawnMinBody
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RespawnMinInc
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RespawnMinBody
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RespawnMaxRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-424
+			wide	1176
+			tall	52
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RespawnMaxText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-3
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	RespawnMaxRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RespawnMaxHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	RespawnMaxText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		RespawnMaxBody
+		{
+			ControlName	ImagePanel
+			xpos	-118
+			ypos	0
+			wide	240
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	RespawnMaxRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RespawnMaxFill
+		{
+			ControlName	ImagePanel
+			xpos	-34
+			ypos	0
+			wide	0
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	RespawnMaxBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnMaxValue
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-32
+			ypos	0
+			wide	80
+			tall	34
+			fontHeight	20
+			textAlignment	east
+			fgcolor_override	"61 218 138 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RespawnMaxRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RespawnMaxDecChip
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fillColor	"24 33 28 230"
+			drawColor	"24 33 28 230"
+			visible	1
+			zpos	4
+			pin_to_sibling	RespawnMaxBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnMaxIncChip
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fillColor	"24 33 28 230"
+			drawColor	"24 33 28 230"
+			visible	1
+			zpos	4
+			pin_to_sibling	RespawnMaxBody
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RespawnMaxDecText
+		{
+			ControlName	Label
+			labelText	<
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fontHeight	18
+			textAlignment	center
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RespawnMaxBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnMaxDec
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RespawnMaxBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RespawnMaxIncText
+		{
+			ControlName	Label
+			labelText	>
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fontHeight	18
+			textAlignment	center
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RespawnMaxBody
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RespawnMaxInc
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RespawnMaxBody
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		SectionLegendTitle
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-28
+			ypos	-486
+			wide	400
+			tall	32
+			fontHeight	17
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		SectionLegendRule
+		{
+			ControlName	ImagePanel
+			xpos	-28
+			ypos	-518
+			wide	1120
+			tall	2
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	1
+			zpos	3
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		FireRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-524
+			wide	1176
+			tall	52
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		FireText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-3
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	FireRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		FireHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	FireText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		FireBody
+		{
+			ControlName	ImagePanel
+			xpos	-32
+			ypos	0
+			wide	240
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	FireRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		FireSegFill0
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	FireBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		FireSegText0
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	FireBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		FireSeg0
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	FireBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		FireSegFill1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	FireBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		FireSegText1
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	FireBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		FireSeg1
+		{
+			ControlName	RuiButton
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	FireBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		FireSplit1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	FireBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AdsRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-576
+			wide	1176
+			tall	52
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		AdsText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-3
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	AdsRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		AdsHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	AdsText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		AdsBody
+		{
+			ControlName	ImagePanel
+			xpos	-32
+			ypos	0
+			wide	360
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	AdsRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		AdsSegFill0
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	AdsBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AdsSegText0
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	AdsBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AdsSeg0
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	AdsBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AdsSegFill1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	AdsBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AdsSegText1
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	AdsBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AdsSeg1
+		{
+			ControlName	RuiButton
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	AdsBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AdsSegFill2
+		{
+			ControlName	ImagePanel
+			xpos	-240
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	AdsBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AdsSegText2
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-240
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	AdsBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AdsSeg2
+		{
+			ControlName	RuiButton
+			xpos	-240
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	AdsBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AdsSplit1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	AdsBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AdsSplit2
+		{
+			ControlName	ImagePanel
+			xpos	-240
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	AdsBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AimRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-628
+			wide	1176
+			tall	52
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		AimText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-3
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	AimRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		AimHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	AimText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		AimBody
+		{
+			ControlName	ImagePanel
+			xpos	-118
+			ypos	0
+			wide	240
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	AimRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		AimFill
+		{
+			ControlName	ImagePanel
+			xpos	-34
+			ypos	0
+			wide	0
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	AimBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AimValue
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-32
+			ypos	0
+			wide	80
+			tall	34
+			fontHeight	20
+			textAlignment	east
+			fgcolor_override	"61 218 138 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	AimRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		AimDecChip
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fillColor	"24 33 28 230"
+			drawColor	"24 33 28 230"
+			visible	1
+			zpos	4
+			pin_to_sibling	AimBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AimIncChip
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fillColor	"24 33 28 230"
+			drawColor	"24 33 28 230"
+			visible	1
+			zpos	4
+			pin_to_sibling	AimBody
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		AimDecText
+		{
+			ControlName	Label
+			labelText	<
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fontHeight	18
+			textAlignment	center
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	AimBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AimDec
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	AimBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		AimIncText
+		{
+			ControlName	Label
+			labelText	>
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			fontHeight	18
+			textAlignment	center
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	AimBody
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		AimInc
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	34
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	AimBody
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		SectionRealTitle
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-28
+			ypos	-690
+			wide	400
+			tall	32
+			fontHeight	17
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		SectionRealRule
+		{
+			ControlName	ImagePanel
+			xpos	-28
+			ypos	-722
+			wide	1120
+			tall	2
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	1
+			zpos	3
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RealFightRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-728
+			wide	1176
+			tall	52
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RealFightText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-3
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	RealFightRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RealFightHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	RealFightText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		RealFightBody
+		{
+			ControlName	ImagePanel
+			xpos	-32
+			ypos	0
+			wide	240
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	RealFightRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RealFightSegFill0
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	RealFightBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealFightSegText0
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RealFightBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealFightSeg0
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RealFightBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealFightSegFill1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	RealFightBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealFightSegText1
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RealFightBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealFightSeg1
+		{
+			ControlName	RuiButton
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RealFightBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealFightSplit1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	RealFightBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealCoverRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-780
+			wide	1176
+			tall	52
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RealCoverText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-3
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	RealCoverRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RealCoverHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	RealCoverText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		RealCoverBody
+		{
+			ControlName	ImagePanel
+			xpos	-32
+			ypos	0
+			wide	360
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	RealCoverRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RealCoverSegFill0
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	RealCoverBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealCoverSegText0
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RealCoverBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealCoverSeg0
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RealCoverBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealCoverSegFill1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	RealCoverBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealCoverSegText1
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RealCoverBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealCoverSeg1
+		{
+			ControlName	RuiButton
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RealCoverBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealCoverSegFill2
+		{
+			ControlName	ImagePanel
+			xpos	-240
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	RealCoverBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealCoverSegText2
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-240
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RealCoverBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealCoverSeg2
+		{
+			ControlName	RuiButton
+			xpos	-240
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RealCoverBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealCoverSplit1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	RealCoverBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealCoverSplit2
+		{
+			ControlName	ImagePanel
+			xpos	-240
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	RealCoverBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealSlideRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-832
+			wide	1176
+			tall	52
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RealSlideText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-3
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	RealSlideRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		RealSlideHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	RealSlideText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		RealSlideBody
+		{
+			ControlName	ImagePanel
+			xpos	-32
+			ypos	0
+			wide	240
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	RealSlideRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		RealSlideSegFill0
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	RealSlideBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealSlideSegText0
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RealSlideBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealSlideSeg0
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RealSlideBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealSlideSegFill1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	RealSlideBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealSlideSegText1
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	RealSlideBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealSlideSeg1
+		{
+			ControlName	RuiButton
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	RealSlideBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		RealSlideSplit1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	RealSlideBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		FooterBG
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	0
+			wide	1176
+			tall	36
+			fillColor	"6 10 8 230"
+			drawColor	"6 10 8 230"
+			visible	1
+			zpos	5
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	BOTTOM_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		FooterLine
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	1176
+			tall	1
+			fillColor	"169 184 175 38"
+			drawColor	"169 184 175 38"
+			visible	1
+			zpos	6
+			pin_to_sibling	FooterBG
+			pin_corner_to_sibling	TOP
+			pin_to_sibling_corner	TOP
+		}
+
+		FooterKeyClose
+		{
+			ControlName	Label
+			labelText	ESC
+			xpos	-24
+			ypos	0
+			wide	38
+			tall	22
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	7
+			allcaps	1
+			bgcolor_override	"24 33 28 255"
+			paintbackground	1
+			pin_to_sibling	FooterBG
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		FooterCloseLabel
+		{
+			ControlName	Label
+			labelText	x
+			xpos	8
+			ypos	0
+			wide	80
+			tall	22
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	7
+			allcaps	0
+			pin_to_sibling	FooterKeyClose
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		GoBackButton
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	130
+			tall	22
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	FooterKeyClose
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		StatusLabel
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	640
+			tall	36
+			fontHeight	14
+			textAlignment	center
+			fgcolor_override	"122 134 127 255"
+			visible	1
+			zpos	7
+			allcaps	0
+			pin_to_sibling	FooterBG
+			pin_corner_to_sibling	CENTER
+			pin_to_sibling_corner	CENTER
+		}
+
+		ResetChip
+		{
+			ControlName	ImagePanel
+			xpos	-24
+			ypos	0
+			wide	130
+			tall	24
+			fillColor	"24 33 28 255"
+			drawColor	"24 33 28 255"
+			visible	1
+			zpos	7
+			pin_to_sibling	FooterBG
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		ResetLabel
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	130
+			tall	24
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	8
+			allcaps	0
+			pin_to_sibling	ResetChip
+			pin_corner_to_sibling	CENTER
+			pin_to_sibling_corner	CENTER
+		}
+
+		ResetButton
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	130
+			tall	24
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	ResetChip
+			pin_corner_to_sibling	CENTER
+			pin_to_sibling_corner	CENTER
+		}
+
+	}
+}
