@@ -991,6 +991,13 @@ void function DodgeBot_Start( entity bot, entity owner, bool isBot )
 	st.anchor = bot.GetOrigin()
 	st.prefDist = min( max( Distance2D( bot.GetOrigin(), owner.GetOrigin() ), 250.0 ), 1500.0 )
 	st.side = RandomInt( 2 )
+	// The Lab copies the owner's current health onto a fresh legend bot along with
+	// the loadout, so a hurt owner would get a hurt bot. Start it at full.
+	if ( isBot )
+	{
+		bot.SetHealth( bot.GetMaxHealth() )
+		bot.SetShieldHealth( bot.GetShieldHealthMax() )
+	}
 	st.maxPool = maxint( 1, bot.GetMaxHealth() + bot.GetShieldHealthMax() )
 	st.lastPool = bot.GetHealth() + bot.GetShieldHealth()
 	st.lastPerceive = Time()
