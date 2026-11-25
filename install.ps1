@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$Game = '',
     [string]$Settings = '',
     [switch]$Uninstall,
@@ -33,9 +33,9 @@ function Find-Game {
     }
     Add-Type -AssemblyName System.Windows.Forms
     $pick = New-Object System.Windows.Forms.FolderBrowserDialog
-    $pick.Description = '请选择 R5Flowstate 游戏目录（里面有 r5apex_dx12.exe）'
+    $pick.Description = 'Select the R5Flowstate game folder (it contains r5apex_dx12.exe)'
     if ($pick.ShowDialog() -eq 'OK' -and (Test-Game $pick.SelectedPath)) { return $pick.SelectedPath }
-    throw '没有找到 R5Flowstate S30 游戏目录（里面应有 r5apex_dx12.exe 和 client_s30.dll）。'
+    throw 'R5Flowstate S30 game folder not found (it should contain r5apex_dx12.exe and client_s30.dll).'
 }
 
 function Save-Text([string]$path, [string]$text) {
@@ -55,7 +55,7 @@ function Update-ModList([string]$vdf) {
     }
     if (-not $Uninstall) {
         $end = $text.LastIndexOf('}')
-        if ($end -lt 0 -or $text -notmatch '"ModList"') { throw "mods.vdf 的内容不认识，没有修改：$vdf" }
+        if ($end -lt 0 -or $text -notmatch '"ModList"') { throw "mods.vdf has unexpected content and was not changed: $vdf" }
         $add = ''
         foreach ($id in $Ids) { $add += "`t`"$id`"`t`t`"1`"$nl" }
         $head = $text.Substring(0, $end)
@@ -83,16 +83,16 @@ function Update-HomeKey([string]$cfg) {
 
 $code = 0
 try {
-    if ($Game -and -not (Test-Game $Game)) { throw "这不是 R5Flowstate S30 游戏目录：$Game" }
+    if ($Game -and -not (Test-Game $Game)) { throw "Not an R5Flowstate S30 game folder: $Game" }
     if (-not $Game) { $Game = Find-Game }
-    if (-not $Quiet -and (Get-Process -Name 'r5apex_dx12' -ErrorAction SilentlyContinue)) { throw '游戏正在运行，请完全退出后再试一次。' }
-    Write-Host "游戏目录：$Game"
+    if (-not $Quiet -and (Get-Process -Name 'r5apex_dx12' -ErrorAction SilentlyContinue)) { throw 'The game is running. Quit it completely and try again.' }
+    Write-Host "Game folder: $Game"
     $modsDir = Join-Path $Game 'mods'
     if (-not (Test-Path -LiteralPath $modsDir)) { New-Item -ItemType Directory -Path $modsDir | Out-Null }
 
     if (-not $Uninstall) {
         foreach ($m in $Mods) {
-            if (-not (Test-Path -LiteralPath (Join-Path $Here "$m\mod.vdf"))) { throw "安装包不完整，缺少 $m。请先把 zip 全部解压，再双击 Install.bat。" }
+            if (-not (Test-Path -LiteralPath (Join-Path $Here "$m\mod.vdf"))) { throw "Incomplete package, missing $m. Extract the whole zip first, then run Install.bat." }
         }
     }
     foreach ($m in $Mods) {
@@ -112,16 +112,16 @@ try {
     }
     $bound = Update-HomeKey $Settings
 
-    if ($Uninstall) { Write-Host '卸载完成。' -ForegroundColor Green }
+    if ($Uninstall) { Write-Host 'Uninstalled.' -ForegroundColor Green }
     else {
-        Write-Host '安装完成。启动游戏，进 Dev Lab 就能用。' -ForegroundColor Green
-        if ($bound) { Write-Host '在 Lab 里按 HOME 键打开 DodgeBot 设置窗口。' }
-        else { Write-Host 'HOME 键没有自动绑定。在 Lab 的 MOD 页打开 DodgeBot UI，或在控制台输入 dodgebotui。' }
+        Write-Host 'Installed. Start the game and open Dev Lab.' -ForegroundColor Green
+        if ($bound) { Write-Host 'Press HOME in the Lab to open the DodgeBot settings window.' }
+        else { Write-Host 'HOME was not bound. Open DodgeBot UI from the Lab MOD page, or type dodgebotui in the console.' }
     }
 }
 catch {
-    Write-Host ('失败：' + $_.Exception.Message) -ForegroundColor Red
+    Write-Host ('Failed: ' + $_.Exception.Message) -ForegroundColor Red
     $code = 1
 }
-if (-not $Quiet) { Write-Host ''; Read-Host '按回车键关闭' | Out-Null }
+if (-not $Quiet) { Write-Host ''; Read-Host 'Press Enter to close' | Out-Null }
 exit $code

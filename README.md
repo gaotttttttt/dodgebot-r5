@@ -1,32 +1,32 @@
 # DodgeBot
 
-R5Flowstate（S30）Dev Lab 的训练靶子 mod：靶子会像真人一样横移、骗招、开镜、还手。
-Human-like strafing and shooting targets for the R5Flowstate S30 Dev Lab. One-click installer, in-game settings window (Chinese UI).
+A training mod for the R5Flowstate (S30) Dev Lab. Targets strafe, bait, aim down sights and shoot back like human players. Includes a one-click installer and an in-game settings window.
 
-## [下载 / Download DodgeBot 1.1.0](../../raw/main/download/DodgeBot-1.1.0.zip)
+## [Download DodgeBot 1.1.1](../../raw/main/download/DodgeBot-1.1.1.zip)
 
-## 安装
-1. 完全退出游戏。
-2. 把 zip **全部解压**，双击 `Install.bat`。
-3. 进自己本地开的 Dev Lab，按 **HOME** 打开设置窗口。
-4. 靶子页：扫射靶身体 = 传奇，职业/传奇 = 跟我一样，点"添加横移目标"。
+## Install
+1. Quit the game completely.
+2. **Extract the whole zip** and double-click `Install.bat`.
+3. Host a local Dev Lab and press **HOME** to open the settings window.
+4. On the Targets page set strafer body = legend and class/legend = same as me, then spawn a strafing target.
 
-升级：再运行一次新版 `Install.bat`。卸载：双击 `Uninstall.bat`。
+To update, run the new `Install.bat`. To remove, run `Uninstall.bat`.
 
-安装器只做三件事：把两个文件夹复制到 `mods`，在 `mods.vdf` 加两行，HOME 键空闲时绑上它。被修改的文件会留 `.bak_dodgebot` 备份。脚本是纯文本，可以先打开 `install.ps1` 看。Windows 提示"未知发布者"是因为脚本没有签名。
+The installer copies two folders into `mods`, adds two lines to `mods.vdf`, and binds HOME if it is free. Edited files get a `.bak_dodgebot` backup. The scripts are plain text, so you can read `install.ps1` first. Windows may show "unknown publisher" because the scripts are not signed.
 
-## 功能
-- **躲子弹**：休闲 / 排位 / 职业三档，有反应延迟、长横移和骗招。
-- **还手**：复制你的英雄，枪法可调；10 米内腰射、10 米外开镜。
-- **击杀后刷新**：10–17 米、360° 随机方向，练定位。
-- **真人对战**（默认关闭）：找掩体、换弹、探头、滑铲跳拉出、推进或后撤。
+## Features
+- **Dodging**: Casual, Ranked and Pro, with reaction delay, long strafes and baits.
+- **Legend bots that shoot back**: copy your legend, adjustable aim, hipfire within 10 m and ADS beyond.
+- **360-degree respawn**: the next target appears 10-17 m away in any direction.
+- **Real fight** (off by default): cover, reloading, peeking, slide-jump swings, pushing and backing off.
 
-## 说明
-- 只用于 R5Flowstate S30 社区服务器的本地 Dev Lab，与正式版 Apex 无关。
-- 设置重启游戏后回到默认值。
-- 详细命令见 [DodgeBot/README.md](DodgeBot/README.md) 和 [DodgeBotUI/README.md](DodgeBotUI/README.md)。
-- 非官方社区 mod，与 Respawn、EA、R5Flowstate 官方无隶属关系。
+## Notes
+- For local R5Flowstate S30 Dev Lab sessions only. Not for official Apex Legends.
+- Settings return to defaults when the game restarts.
+- Commands: [DodgeBot/README.md](DodgeBot/README.md) and [DodgeBotUI/README.md](DodgeBotUI/README.md).
+- Unofficial community mod, not affiliated with Respawn, EA or R5Flowstate.
 
-## 更新
-- **1.1.0**：新增真人对战模式。
-- **1.0.0**：躲子弹、传奇身体、开镜、设置窗口、一键安装。
+## Changelog
+- **1.1.1**: English text throughout.
+- **1.1.0**: Real fight mode.
+- **1.0.0**: Dodging, legend bodies, ADS, settings window, one-click installer.

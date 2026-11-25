@@ -4,6 +4,6 @@
 	"name"			"DodgeBot"
 	"id"			"Trainer_DodgeBot"
 	"description"	"Lab strafers react to your crosshair, shots and damage like a human player: reaction delay, bait strafe combos, range control; legend bodies shoot back. Console: dodgebot 0-3, speed, respawn, fire, aim."
-	"version"		"1.1.0"
+	"version"		"1.1.1"
 	"realm"			"both"
 }

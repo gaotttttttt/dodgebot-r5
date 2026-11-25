@@ -1,130 +1,92 @@
-# DodgeBot（躲子弹靶子）
+# DodgeBot
 
-让 Dev Lab → 靶子 → "添加横移目标" 刷出来的靶子，像真人玩家一样对你的准星、开火和伤害做出反应。
+Strafing targets spawned from Dev Lab > Targets react to your crosshair, shots and damage like a human player.
 
-## 用法
-1. Dev Lab → **MOD** 页 → **DodgeBot** 是总开关（默认开启）。关闭后所有靶子换回原版横移大脑。
-2. 进入 靶子 页，正常点"添加横移目标"。扫射靶身体选 **假人** 或 **传奇** 都可以（见下方"传奇身体"）。
-3. 靶子刷出后约 0.2 秒会被接管，默认难度是**排位**。
-4. 在控制台（`~`）里切换难度（命令小写；在控制台选难度时，也会顺手把 MOD 页开关打开）：
+## Usage
+1. Dev Lab > **MOD** > **DodgeBot** is the master switch (on by default). Off gives every target the stock strafe brain.
+2. Spawn a strafing target from the Targets page. Dummy and legend bodies both work.
+3. The target is taken over about 0.2 s after it spawns. The default difficulty is Ranked.
+4. Change settings in the window (HOME) or in the console (`~`, lowercase):
 
-| 命令 | 难度 | 反应时间 | 特点 |
+| Command | Difficulty | Reaction | Style |
 |---|---|---|---|
-| `dodgebot 0` | 关闭 | — | 换回原版横移大脑 |
-| `dodgebot 1` | 休闲 | 320–480 ms | 以普通长横移为主，很少骗 |
-| `dodgebot 2` | 排位 | 220–320 ms | 长横移和简单骗招各占一部分 |
-| `dodgebot 3` | 职业 | 160–240 ms | 以"短左短右接长"这类骗招为主 |
+| `dodgebot 0` | Off | - | Stock strafe brain |
+| `dodgebot 1` | Casual | 320-480 ms | Mostly plain long strafes |
+| `dodgebot 2` | Ranked | 220-320 ms | Long strafes mixed with simple baits |
+| `dodgebot 3` | Pro | 160-240 ms | Mostly short-short-long baits |
 
-### 移速挡位
-| 命令 | 移速 | 对应 Apex 里的情况 |
+### Speed presets
+| Command | Speed | Apex equivalent |
 |---|---|---|
-| `dodgebot speed unarmed` | 199 u/s | 空手 |
-| `dodgebot speed hipfire` | 173 u/s | 持枪腰射 |
-| `dodgebot speed ads` | 130 u/s | 开镜 |
-| `dodgebot speed 160` | 自定义（50–400） | — |
-| `dodgebot speed off` | 跟随 Lab 的扫射速度滑块 | 默认 |
+| `dodgebot speed unarmed` | 199 u/s | Holstered |
+| `dodgebot speed hipfire` | 173 u/s | Gun out |
+| `dodgebot speed ads` | 130 u/s | Aiming down sights |
+| `dodgebot speed 160` | Custom (50-400) | - |
+| `dodgebot speed off` | Lab strafe slider | Default |
 
-假人靠动画的根运动移动，播放倍率和实际速度之间没有固定换算，所以 mod 会在每一步横移时**实测**走了多远，反推出"倍率 1 = 多少 u/s"，再自动校准到你选的速度。刚开始的一两步可能不准，之后就会贴近目标。
-- 打开挡位后，靶子不会超过这个速度（真人也跑不超），只会在 90%–100% 之间浮动，模拟加减速。
-- 输入 `dodgebot` 会显示**最近 4 秒**的实测：横移平均速度、最快一段 0.3 秒的速度。切换挡位后等几秒再看，旧挡位的数据会自然滚出窗口。
-- 挡位**不会保存**，重启或换地图后回到 `off`，建议绑键。
-- 速度很低时（例如 130），动画会放慢播放，腿部动作看起来会偏慢。
+Dummies move by animation root motion, so the mod measures each strafe and calibrates toward the chosen speed. The first steps can be off. `dodgebot` prints the measured speed over the last 4 seconds.
 
-### 击杀后 360° 随机刷新（练定位）
-| 命令 | 效果 |
+### 360-degree respawn
+| Command | Effect |
 |---|---|
-| `dodgebot respawn on` | 打开（默认），击杀后新靶子刷在你周围 **10–17 米**、任意方向 |
-| `dodgebot respawn 8 20` | 改成 8–20 米（允许 3–60 米） |
-| `dodgebot respawn off` | 关闭，恢复原版：刷在准星前方 |
+| `dodgebot respawn on` | Default: after a kill, the next target spawns **10-17 m** away in any direction |
+| `dodgebot respawn 8 20` | Use 8-20 m (3-60 m allowed) |
+| `dodgebot respawn off` | Stock behavior: spawn in front of the crosshair |
 
-- 只在靶子**被击杀**后生效；第一次点"添加横移目标"时仍然刷在准星前方。开了"无限血"的靶子不会死，也就不会触发。
-- 刷新点会检查：脚下是可以站的地面、和你的眼睛之间没有遮挡（不会刷在墙后或石头里）、高度差不超过约 5 米。周围实在找不到合适位置时，这一次按原版刷新。
-- 实现方式是靶子死亡的瞬间，把刷新点临时写进 Lab 的"固定出生点"，0.8 秒后恢复你原来的设置。所以新靶子会**直接出现在新位置**，不会先在你面前闪一下。
-- 1 米 ≈ 39.37 个游戏单位。
+Applies only after a kill. Spawn points need standable ground, a clear line to your eyes and a height difference under about 5 m. If none is found, that respawn uses the stock position. 1 m is about 39.37 units.
 
-可以绑键：`bind F5 "dodgebot 1"`、`bind F6 "dodgebot 2"`、`bind F7 "dodgebot 3"`、`bind F8 "dodgebot speed hipfire"`。
+## Legend bodies
+On the Targets page set **strafer body = legend** and **class/legend = same as me**. Target presets do not matter, and the Lab's own target fire and accuracy settings have no effect on these bots.
 
-## 传奇身体（会还手的对手）
-靶子页只需要设置：
-- **扫射靶身体** → 传奇
-- **扫射靶职业 / 扫射靶传奇** → 跟我一样（复制你当前的英雄）
-
-**靶子预设不用改**，选哪个都行。开火和枪法是 DodgeBot 自己的设置，Lab 的"靶子开火"和"瞄准度"对被接管的靶子无效：
-
-| 命令 | 效果 |
+| Command | Effect |
 |---|---|
-| `dodgebot fire on` | 还手（默认开） |
-| `dodgebot fire off` | 只躲不打 |
-| `dodgebot fire` | 开 / 关切换，适合绑键 |
-| `dodgebot aim 0`–`100` | 枪法，默认 50 |
-| `dodgebot ads off` / `auto` / `on` | 腰射 / 自动（默认）/ 一直开镜 |
+| `dodgebot fire on` / `off` | Shoot back (default on) / dodge only |
+| `dodgebot fire` | Toggle |
+| `dodgebot aim 0`-`100` | Aim skill, default 50 |
+| `dodgebot ads off` / `auto` / `on` | Hipfire / auto (default) / always ADS |
 
-传奇身体是真正的 bot 玩家，DodgeBot 会像真人一样每帧给它"推摇杆"和"转视角"：
-- **移动**：用真实的玩家移动物理，有真实的加速度，速度就是它手里枪的真实速度。
-- **移速挡位**：`ads` 会让它按住开镜，以真实的开镜速度移动；`hipfire` / `off` 是腰射速度；自定义数值低于腰射速度时会减小摇杆输入。它拿着枪，所以**达不到空手 199**。
-- **开镜**：真的按开镜键，举枪姿势和移速都由引擎处理。自动模式 10 米外开镜、10 米内腰射，换弹时松开。移速挡位选 `ads` 时总是开镜。
-- **瞄准**：准星会**落后**于你的移动（跟枪延迟），并在你身体周围**飘动**（误差）。`aim 0` → 延迟 0.22 秒、误差约 6°；`aim 100` → 延迟 0.06 秒、误差约 0.4°。
-- **开火**：能看到你、并且准星大致在你身上（约 10° 以内）才开枪；你刚进入它视野时，要等 0.18–0.32 秒才开火；打空弹匣会换弹。全自动枪按住扳机，单发枪按射速点射，连发枪一次一组。
-- Lab 改设置（速度、横移开关、开火开关等）时会重启靶子的原版程序，DodgeBot 会在下一帧把它接管回来。
-- 第一次让它左右走时，mod 会检测"向右推摇杆"是不是真的往右走，方向反了会自动纠正（控制台会提示）。
-- 这些设置**不会保存**，重启后回到默认（还手开、枪法 50），建议绑键，例如 `bind F9 "dodgebot fire"`。
+- **Movement** uses real player physics at the real speed of the gun it holds, so it cannot reach unarmed 199.
+- **ADS** presses the real zoom button. Auto aims down sights beyond 10 m and releases while reloading. The `ads` speed preset always aims down sights.
+- **Aim** lags behind your movement and wanders: `aim 0` is 0.22 s and about 6 degrees, `aim 100` is 0.06 s and about 0.4 degrees.
+- **Fire** needs line of sight and a crosshair within about 10 degrees of you, after a 0.18-0.32 s reaction. It reloads, and respects auto, semi-auto and burst guns.
 
-## 真人对战（独立模式，默认关闭）
-只对**传奇身体**有效。关掉时，原来的躲子弹逻辑完全照旧。
+## Real fight (off by default)
+Legend bodies only. While it is off, the dodging logic above is unchanged.
 
-| 命令 | 效果 |
+| Command | Effect |
 |---|---|
-| `realfight on` / `off` | 打开 / 关闭 |
-| `realfight cover off` / `hurt` / `often` | 不用掩体 / 残血和换弹时（默认）/ 挨打时也会躲 |
-| `realfight slide on` / `off` | 滑铲跳，默认开 |
+| `realfight on` / `off` | Turn on / off |
+| `realfight cover off` / `hurt` / `often` | No cover / when hurt or reloading (default) / also when hit |
+| `realfight slide on` / `off` | Slide jumps, on by default |
 
-- **掩体**：用射线找你看不见、它能直线跑到的位置，冲刺过去，躲着换弹，再探头打一小段，有时只骗一下。你绕过来能看见它时就直接对枪。
-- **滑铲跳拉出**：在掩体后助跑，滑铲跳拉出来，空中就开枪；有时会故意先躲进去再突然拉出，追你过拐角时也会用。需要掩体和滑铲跳都打开。
-- **滑铲跳**：冲刺 → 滑铲 → 起跳，空中转回来瞄你。滑铲时会按下蹲键，这和蹲着横移不是一回事。
-- **性格**：每次刷新随机一个激进程度，加上双方血量和距离，决定推进、对峙还是后撤。
-- **走位**：只走键盘能按出来的方向（W/A/S/D 和斜向），节奏长短不一，近身偶尔跳一下；对峙时偶尔用原来的骗招。
-- **瞄准**：按你约 0.14–0.3 秒前的移动来预判，你突然变向，它会先顺着老方向甩过头。远距离会点射停顿。
-- **找你**：看不见你超过约 1.2 秒，就去最后看到你的地方找。看不见你时，它瞄的也是最后的位置，不会隔墙跟枪。
-- 地图空旷时找不到掩体，就继续横移。绕路只有简单的避障。
-- 对枪、枪法、开镜、难度沿用原来的设置。
+- **Cover**: finds a reachable spot you cannot see, sprints there, reloads, then peeks, sometimes as a fake. If you flank it, it fights.
+- **Slide-jump swing**: runs up behind cover, slide jumps out and fires in the air. It sometimes hides first to ambush you, and also swings when chasing round corners. Needs both cover and slide on.
+- **Temperament**: each spawn rolls an aggression level. Health and distance then decide between pushing, holding and backing off.
+- **Movement**: only keyboard directions, with uneven timing.
+- **Aim**: predicts from your movement 0.14-0.3 s ago, so a sudden change of direction makes it overshoot. It fires bursts at range.
+- **Hunting**: after about 1.2 s without sight it searches your last seen position. It does not track through walls.
+- On open maps with no cover it keeps strafing. Path finding is simple obstacle avoidance.
 
-## 横移连招
-每一次横移都由三种"步"拼成：
-
-| 步 | 时长（休闲 / 排位 / 职业） | 能否被打断 |
+## Strafe patterns
+| Step | Length (Casual / Ranked / Pro) | Interruptible |
 |---|---|---|
-| **点**（短 strafe） | 0.18–0.26 / 0.15–0.22 / 0.13–0.19 秒 | 不会，骗招必须做完 |
-| **中** | 0.30–0.50 / 0.25–0.42 / 0.22–0.38 秒 | 0.12 秒后可以 |
-| **长**（commit） | 0.70–1.20 / 0.60–1.10 / 0.55–1.00 秒 | 0.35 秒后会重新判断一次 |
+| Tap | 0.18-0.26 / 0.15-0.22 / 0.13-0.19 s | No |
+| Medium | 0.30-0.50 / 0.25-0.42 / 0.22-0.38 s | After 0.12 s |
+| Long | 0.70-1.20 / 0.60-1.10 / 0.55-1.00 s | Re-evaluated after 0.35 s |
 
-拼成的连招（每一招最后都是往选定方向的长横移）：
+| Pattern | Weight when reacting (Casual / Ranked / Pro) |
+|---|---|
+| Long | 45% / 30% / 20% |
+| Short, then long the other way | 25% / 25% / 25% |
+| Short, short, long | 5% / 20% / 30% |
+| ADAD, then long | 15% / 15% / 15% |
+| Long, then long back | 10% / 10% / 10% |
+| Pause, then long | Only during a fight |
 
-| 连招 | 动作 | 休闲 / 排位 / 职业（反应时的权重） |
-|---|---|---|
-| 长横移 | 一条长 strafe | 45% / 30% / 20% |
-| 短 → 长 | 先往反方向点一下，再往真方向长走 | 25% / 25% / 25% |
-| **短左短右接长** | 点 A、点 B，再往 A 长走（你跟着第二下转过去，它却往回长走） | 5% / 20% / 30% |
-| ADAD 接长 | 2–4 下长短不一的点，最后往真方向长走（或中段） | 15% / 15% / 15% |
-| 长 → 长 | 一边长走，再整条长走回来，大幅度摆动 | 10% / 10% / 10% |
-| 停一下 → 长 | 站住 0.12–0.3 秒（像在瞄你），再长走 | 只在交战中出现 |
+Steps are 0.85x as long at close range and up to 1.2x at long range. It reacts to a crosshair on or closing on it, bullets passing within 80 units, and damage. It never crouch-strafes. Below 35% health and shields under fire, it retreats diagonally.
 
-- 同一招不会经常连着用两次（上一招会被重抽一次）。
-- 被你瞄着时选的方向：它正往你准星那一侧跑就一定反向；否则按难度概率（45% / 65% / 80%）反向。
-- 距离近时每一步缩短到 0.85 倍，距离远时拉长到 1.2 倍。
-
-## 它在模拟什么
-- **反应延迟**：察觉到威胁后，要等一个人类反应时间才动作，不会同帧闪避。
-- **威胁感知**：准星压在身上、准星正在快速追近、子弹擦身而过（80 单位以内）、刚掉血。
-- **横移连招**：见上表。
-- **不蹲**：实战里没人蹲着横移，所以它从不蹲；Lab 的"蹲伏"设置对它无效。
-- **残血撤退**：护盾加血量低于 35% 且正在挨打时，往远离准星的斜后方长距离撤离。
-- **距离控制**：尽量保持刚刷出时的距离，离你太远就斜着靠近，太近就斜着拉开；不会离出生点超过约 320 单位。
-- **不交战时**：以长横移为主，偶尔停一下，偶尔前后走。
-
-Lab 里原有的设置照常生效：扫射速度滑块、关闭横移、无限血、护甲。
-
-## 限制
-- 假人只能用动画的根运动移动（左/右/前/后）。两种身体都**不会跳、不会滑铲**，也不会找掩体（打开"真人对战"的传奇身体除外）。
-- 传奇 bot 的归属是按"谁身边有传奇靶子、离得最近"来判断的；多人同服时可能认错人。
-- 目标切换、爆米花等其他训练模式里的靶子不会被接管。
-- 默认难度可以用玩法变量 `dodgebot_default_level` 修改（0–3）。
+## Limits
+- Dummies cannot jump, slide or use cover. Legend bodies do so only in Real fight.
+- A legend bot is matched to the nearest player with legend targets, so it can pick the wrong player on a shared server.
+- Targets in other training modes are not taken over.
+- Settings return to defaults when the game restarts. The playlist var `dodgebot_default_level` (0-3) changes the default difficulty.

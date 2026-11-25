@@ -1,4 +1,4 @@
-// Real fight ("真人对战"): a separate brain for DodgeBot's legend bots. Off by
+// Real fight: a separate brain for DodgeBot's legend bots. Off by
 // default; while off, nothing here runs and the plain dodge brain is unchanged.
 //
 // On top of the dodge brain's strafe combos, the bot
@@ -161,18 +161,18 @@ void function RealFight_Cmd( entity player, array<string> args )
 
 	if ( bad )
 	{
-		SendHudMessage( player, "用法: realfight on / off\nrealfight cover off / hurt / often\nrealfight slide on / off", -1, 0.3, 255, 200, 120, 255, 0.1, 5.0, 0.5 )
+		SendHudMessage( player, "Usage: realfight on / off\nrealfight cover off / hurt / often\nrealfight slide on / off", -1, 0.3, 255, 200, 120, 255, 0.1, 5.0, 0.5 )
 		return
 	}
 
-	string coverName = "关"
+	string coverName = "Off"
 	if ( prefs.cover == RF_COVER_HURT )
-		coverName = "残血/换弹"
+		coverName = "Hurt/reload"
 	else if ( prefs.cover == RF_COVER_OFTEN )
-		coverName = "积极"
-	string onName = prefs.on ? "开" : "关"
-	string slideName = prefs.slide ? "开" : "关"
-	SendHudMessage( player, format( "真人对战: %s | 掩体: %s | 滑铲跳: %s", onName, coverName, slideName ), -1, 0.3, 255, 255, 255, 255, 0.1, 3.0, 0.5 )
+		coverName = "Often"
+	string onName = prefs.on ? "On" : "Off"
+	string slideName = prefs.slide ? "On" : "Off"
+	SendHudMessage( player, format( "Real fight: %s | Cover: %s | Slide jump: %s", onName, coverName, slideName ), -1, 0.3, 255, 255, 255, 255, 0.1, 3.0, 0.5 )
 	printt( format( "[REALFIGHT] %s on=%s cover=%d slide=%s", player.GetPlayerName(), string( prefs.on ), prefs.cover, string( prefs.slide ) ) )
 }
 
