@@ -871,11 +871,25 @@ void function DodgeBot_RestoreSpawn( entity owner, int token )
 
 // ---- Takeover ---------------------------------------------------------------
 
+// Killing a legend bot fills your health and shield.
+void function DodgeBot_OnPlayerKilled( entity victim, entity attacker, var damageInfo )
+{
+	if ( !file.masterOn || !IsValid( victim ) || !victim.IsPlayer() || !victim.IsBot() )
+		return
+	if ( !IsValid( attacker ) || !attacker.IsPlayer() || attacker.IsBot() || !IsAlive( attacker ) )
+		return
+	if ( DodgeBot_GetLevel( attacker ) <= 0 )
+		return
+	attacker.SetHealth( attacker.GetMaxHealth() )
+	attacker.SetShieldHealth( attacker.GetShieldHealthMax() )
+}
+
 void function DodgeBot_EntitiesDidLoad()
 {
 	if ( file.scanning )
 		return
 	file.scanning = true
+	AddCallback_OnPlayerKilled( DodgeBot_OnPlayerKilled )
 	thread DodgeBot_ScanThread()
 }
 
@@ -1715,7 +1729,7 @@ void function DodgeBot_FireLoop( DodgeState st )
 			profileAt = Time()
 			DodgeBot_ApplyFireProfile( st )
 		}
-		// Real fight: two guns, like you. Keeps hadShot, so no new reaction.
+		// Two guns, like you, in both modes. Keeps hadShot, so no new reaction.
 		if ( RealFight_SwapWeapon( st, weapon ) )
 		{
 			DodgeBot_SetTrigger( st, false )

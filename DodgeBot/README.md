@@ -49,6 +49,8 @@ On the Targets page set **strafer body = legend** and **class/legend = same as m
 - **ADS** presses the real zoom button. Auto aims down sights beyond 10 m and releases while reloading. The `ads` speed preset always aims down sights.
 - **Aim** lags behind your movement and wanders: `aim 0` is 0.22 s and about 6 degrees, `aim 100` is 0.06 s and about 0.4 degrees.
 - **Fire** needs line of sight and a crosshair within about 10 degrees of you, after a 0.18-0.32 s reaction. It reloads, and respects auto, semi-auto and burst guns.
+- **Two guns**: swaps to the other gun when one runs dry in a fight, and reloads the empty one out of sight. Carry two guns yourself; it copies your loadout when it spawns.
+- **Refill**: killing a legend bot fills your health and shield.
 
 ## Real fight (off by default)
 Legend bodies only. While it is off, the dodging logic above is unchanged.
@@ -59,12 +61,12 @@ Legend bodies only. While it is off, the dodging logic above is unchanged.
 | `realfight cover off` / `hurt` / `often` | No cover / when hurt or reloading (default) / also when hit |
 | `realfight slide on` / `off` | Slide jumps, on by default |
 
-- **Cover**: finds a reachable spot you cannot see, sprints there, reloads, then peeks, sometimes as a fake. If you flank it, it fights.
+- **Cover**: looks within 5 m for a spot you cannot see, low walls included, and runs there to reload. It stays hidden until loaded, then peeks, sometimes as a fake. With nothing in range it backs off while reloading.
 - **Slide-jump swing**: runs up behind cover, slide jumps out and fires in the air. It sometimes hides first to ambush you, and also swings when chasing round corners. Needs both cover and slide on.
 - **Temperament**: each spawn rolls an aggression level. Health and distance then decide between pushing, holding and backing off.
 - **Movement**: only keyboard directions, with uneven timing.
 - **Aim**: predicts from your movement 0.14-0.3 s ago, so a sudden change of direction makes it overshoot. It fires bursts at range.
-- **Two guns**: swaps to the other gun when one runs dry in a fight, and reloads the empty one out of sight. Carry two guns yourself; it copies your loadout when it spawns.
+- **Air turn**: within 8 m a swap sometimes comes with a jump that curls A, W, D (or mirrored) in the air.
 - **Hunting**: after about 1.2 s without sight it searches your last seen position. It does not track through walls.
 - On open maps with no cover it keeps strafing. Path finding is simple obstacle avoidance.
 
