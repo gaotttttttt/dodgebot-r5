@@ -64,6 +64,7 @@ Legend bodies only. While it is off, the dodging logic above is unchanged.
 - **Temperament**: each spawn rolls an aggression level. Health and distance then decide between pushing, holding and backing off.
 - **Movement**: only keyboard directions, with uneven timing.
 - **Aim**: predicts from your movement 0.14-0.3 s ago, so a sudden change of direction makes it overshoot. It fires bursts at range.
+- **Two guns**: swaps to the other gun when one runs dry in a fight, and reloads the empty one out of sight. Carry two guns yourself; it copies your loadout when it spawns.
 - **Hunting**: after about 1.2 s without sight it searches your last seen position. It does not track through walls.
 - On open maps with no cover it keeps strafing. Path finding is simple obstacle avoidance.
 

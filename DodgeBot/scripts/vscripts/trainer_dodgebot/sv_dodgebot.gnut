@@ -1715,6 +1715,13 @@ void function DodgeBot_FireLoop( DodgeState st )
 			profileAt = Time()
 			DodgeBot_ApplyFireProfile( st )
 		}
+		// Real fight: two guns, like you. Keeps hadShot, so no new reaction.
+		if ( RealFight_SwapWeapon( st, weapon ) )
+		{
+			DodgeBot_SetTrigger( st, false )
+			wait 0.2
+			continue
+		}
 		if ( weapon.UsesClipsForAmmo() && weapon.GetWeaponPrimaryClipCount() <= 0 )
 		{
 			DodgeBot_SetTrigger( st, false )

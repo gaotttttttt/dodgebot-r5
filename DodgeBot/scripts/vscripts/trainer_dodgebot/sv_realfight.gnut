@@ -24,6 +24,7 @@ global function RealFight_ForgetPlayer
 global function RealFight_HoldsFire
 global function RealFight_FireReact
 global function RealFight_HasShot
+global function RealFight_SwapWeapon
 
 #if SERVER
 const float RF_TICK = 0.05
@@ -84,6 +85,7 @@ struct RealFightMemory
 	float burstUntil = 0.0
 	float pauseUntil = 0.0
 	float blindAt = -99.0         // last time it could not see you
+	float nextSwapAt = 0.0
 	float prefireUntil = -1.0     // planned swing: shoots the moment it sees you
 	float nextAmbushAt = 0.0
 }
@@ -208,6 +210,7 @@ RealFightMemory function RealFight_Memory( entity bot )
 		fresh.nextAmbushAt = Time() + RandomFloatRange( 1.5, 4.0 )
 		fresh.nextSlideAt = Time() + RandomFloatRange( 0.5, 2.0 )
 		file.memory[ bot ] <- fresh
+		RealFight_FillClips( bot )
 	}
 	return file.memory[ bot ]
 }
@@ -360,6 +363,61 @@ bool function RealFight_HoldsFire( DodgeState st )
 		return true
 	}
 	return false
+}
+
+// ---- Two guns -------------------------------------------------------------------
+
+// The Lab copies your half-empty magazines too: start with both full.
+void function RealFight_FillClips( entity bot )
+{
+	array<int> slots = [ WEAPON_INVENTORY_SLOT_PRIMARY_0, WEAPON_INVENTORY_SLOT_PRIMARY_1 ]
+	foreach ( int slot in slots )
+	{
+		entity weapon = bot.GetNormalWeapon( slot )
+		if ( IsValid( weapon ) && weapon.UsesClipsForAmmo() )
+			weapon.SetWeaponPrimaryClipCount( weapon.GetWeaponPrimaryClipCountMax() )
+	}
+}
+
+// Dry in a fight: pull the other gun instead of reloading. Out of sight with the
+// other gun empty: go back to it, and the fire loop reloads it.
+bool function RealFight_SwapWeapon( DodgeState st, entity weapon )
+{
+	entity bot = st.bot
+	if ( !RealFight_IsOn( st.owner ) || !weapon.UsesClipsForAmmo() )
+		return false
+	RealFightMemory mem = RealFight_Memory( bot )
+	if ( Time() < mem.nextSwapAt )
+		return false
+
+	int slot = WEAPON_INVENTORY_SLOT_PRIMARY_1
+	if ( weapon == bot.GetNormalWeapon( WEAPON_INVENTORY_SLOT_PRIMARY_1 ) )
+		slot = WEAPON_INVENTORY_SLOT_PRIMARY_0
+	else if ( weapon != bot.GetNormalWeapon( WEAPON_INVENTORY_SLOT_PRIMARY_0 ) )
+		return false
+	entity other = bot.GetNormalWeapon( slot )
+	if ( !IsValid( other ) || !other.UsesClipsForAmmo() )
+		return false
+
+	int clip = weapon.GetWeaponPrimaryClipCount()
+	int otherClip = other.GetWeaponPrimaryClipCount()
+	bool sight = RealFight_Sight( st )
+	bool dry = clip <= 0 && otherClip > 0 && ( sight || Time() - mem.seenAt < 0.8 )
+	// The engine may have started its own reload on empty: swapping cancels it.
+	bool tidy = !weapon.IsReloading() && otherClip <= 0 && clip * 2 > weapon.GetWeaponPrimaryClipCountMax() && !sight && Time() - mem.seenAt > 1.0
+	if ( !dry && !tidy )
+		return false
+	mem.nextSwapAt = Time() + 0.5
+	try
+	{
+		bot.SetActiveWeaponBySlot( eActiveInventorySlot.mainHand, slot )
+	}
+	catch ( eSwap )
+	{
+		return false
+	}
+	printt( format( "[REALFIGHT] %s swap to %s (%s)", bot.GetPlayerName(), other.GetWeaponClassName(), dry ? "dry" : "reload it" ) )
+	return true
 }
 
 // ---- Terrain --------------------------------------------------------------------
