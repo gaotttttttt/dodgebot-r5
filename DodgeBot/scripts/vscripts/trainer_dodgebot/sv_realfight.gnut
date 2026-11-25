@@ -23,6 +23,7 @@ global function RealFight_AimTarget
 global function RealFight_ForgetPlayer
 global function RealFight_HoldsFire
 global function RealFight_FireReact
+global function RealFight_HasShot
 
 #if SERVER
 const float RF_TICK = 0.05
@@ -43,6 +44,13 @@ const float RF_TURN_MIN = 90.0
 const float RF_AIM_REACT_WORST = 0.30  // how late it notices that you changed direction
 const float RF_AIM_REACT_BEST = 0.14
 const float RF_AIM_HISTORY = 0.5
+const float RF_LEAD_MAX_FRAC = 0.2     // most it can overshoot, as a share of the distance
+const float RF_CONE_NEAR_DIST = 300.0  // fire cone: wide up close, tight at range
+const float RF_CONE_FAR_DIST = 1200.0
+const float RF_CONE_NEAR_DOT = 0.90
+const float RF_CONE_FAR_DOT = 0.985
+const float RF_CONE_KEEP = 0.05        // extra room while already shooting
+const float RF_IN_VIEW_FOR = 0.2       // in view this long: no surprise left
 const int RF_PLAN_BACK = -1
 const int RF_PLAN_HOLD = 0
 const int RF_PLAN_PUSH = 1
@@ -75,6 +83,7 @@ struct RealFightMemory
 	array<vector> histPos
 	float burstUntil = 0.0
 	float pauseUntil = 0.0
+	float blindAt = -99.0         // last time it could not see you
 	float prefireUntil = -1.0     // planned swing: shoots the moment it sees you
 	float nextAmbushAt = 0.0
 }
@@ -194,6 +203,7 @@ RealFightMemory function RealFight_Memory( entity bot )
 
 		RealFightMemory fresh
 		fresh.seenAt = Time()
+		fresh.blindAt = Time()
 		fresh.temper = RandomFloatRange( 0.1, 0.95 )
 		fresh.nextAmbushAt = Time() + RandomFloatRange( 1.5, 4.0 )
 		fresh.nextSlideAt = Time() + RandomFloatRange( 0.5, 2.0 )
@@ -214,12 +224,19 @@ bool function RealFight_Sight( DodgeState st )
 	RealFightMemory mem = RealFight_Memory( st.bot )
 	if ( Time() - mem.sightAt < 0.1 )
 		return mem.sight
+	// Not looking for a while (sprinting): it has to pick you up again.
+	if ( Time() - mem.sightAt > 0.4 )
+		mem.blindAt = Time()
 	mem.sightAt = Time()
 	mem.sight = RealFight_Clear( st.bot.EyePosition(), st.owner.EyePosition(), [ st.bot, st.owner ] )
 	if ( mem.sight )
 	{
 		mem.seenAt = Time()
 		mem.seenPos = st.owner.GetOrigin()
+	}
+	else
+	{
+		mem.blindAt = Time()
 	}
 	return mem.sight
 }
@@ -273,6 +290,10 @@ vector function RealFight_LateRead( DodgeState st, RealFightMemory mem, vector t
 		if ( Length( vel ) > 600.0 )
 			return target   // teleport or respawn
 		vector lead = vel * ( Time() - mem.histAt[ i ] )
+		float leadMax = Distance( st.bot.EyePosition(), target ) * RF_LEAD_MAX_FRAC
+		float leadLen = Length( lead )
+		if ( leadLen > leadMax && leadLen > 0.0 )
+			lead = lead * ( leadMax / leadLen )
 		// Height changes are read worse than sideways ones.
 		return mem.histPos[ i ] + < lead.x, lead.y, lead.z * 0.5 >
 	}
@@ -287,7 +308,30 @@ float function RealFight_FireReact( DodgeState st, float normal )
 		return normal
 	if ( Time() < RealFight_Memory( st.bot ).prefireUntil )
 		return RandomFloatRange( 0.03, 0.08 )
+	// Same fight, still looking at you (after a reload, or the crosshair slid
+	// off for a moment): nothing to react to.
+	if ( Time() - RealFight_Memory( st.bot ).blindAt > RF_IN_VIEW_FOR )
+		return 0.03
 	return normal
+}
+
+// Like DodgeBot_HasShot, but a person up close keeps spraying while the
+// crosshair catches up, so the cone widens with closeness and while shooting.
+bool function RealFight_HasShot( DodgeState st )
+{
+	entity bot = st.bot
+	entity owner = st.owner
+	vector eye = bot.EyePosition()
+	vector to = owner.GetOrigin() + < 0, 0, RF_CHEST + 6.0 > - eye
+	float far = ( Length( to ) - RF_CONE_NEAR_DIST ) / ( RF_CONE_FAR_DIST - RF_CONE_NEAR_DIST )
+	far = min( max( far, 0.0 ), 1.0 )
+	float need = RF_CONE_NEAR_DOT + ( RF_CONE_FAR_DOT - RF_CONE_NEAR_DOT ) * far
+	if ( st.trigger )
+		need -= RF_CONE_KEEP
+	if ( DotProduct( AnglesToForward( bot.EyeAngles() ), Normalize( to ) ) < need )
+		return false
+	TraceResults los = TraceLine( eye, owner.EyePosition(), [ bot, owner ], TRACE_MASK_SHOT, TRACE_COLLISION_GROUP_NONE )
+	return los.fraction >= 1.0 || los.hitEnt == owner
 }
 
 // Long range: bursts with short breaks, like a player controlling recoil.
@@ -514,6 +558,7 @@ bool function RealFight_RunTo( DodgeState st, vector dest, bool slide )
 	entity bot = st.bot
 	RealFight_BeginRun( st )
 	float start = Time()
+	bool forReload = st.wantReload
 	vector checkPos = bot.GetOrigin()
 	float checkAt = Time() + 0.4
 	float slideAt = -1.0
@@ -550,6 +595,9 @@ bool function RealFight_RunTo( DodgeState st, vector dest, bool slide )
 
 		wait RF_TICK
 		if ( !RealFight_Still( st ) )
+			break
+		// Ran off to reload, the gun is ready and you are right there: fight.
+		if ( forReload && !st.wantReload && slideAt < 0.0 && RealFight_HealthFrac( st ) >= RF_HURT_FRAC && RealFight_Sight( st ) )
 			break
 		if ( Time() >= checkAt )
 		{
@@ -832,6 +880,12 @@ bool function RealFight_Hold( DodgeState st, DodgeParams p, float duration, bool
 	{
 		DodgeBot_BotAim( st )
 		int buttons = DodgeBot_BotButtons( st )
+		// Loaded: no reason to keep waiting, beyond a short uneven beat.
+		if ( reload && !st.wantReload && Time() - start > 0.4 && RealFight_ClipFrac( st ) > 0.95 )
+		{
+			reload = false
+			duration = min( duration, Time() - start + RandomFloatRange( 0.05, 0.2 ) )
+		}
 		if ( reload && Time() - start < 0.15 )
 			buttons = IN_RELOAD
 		// Restless feet: small shuffles with breaks, never more than a step.

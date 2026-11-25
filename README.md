@@ -2,7 +2,7 @@
 
 A training mod for the R5Flowstate (S30) Dev Lab. Targets strafe, bait, aim down sights and shoot back like human players. Includes a one-click installer and an in-game settings window.
 
-## [Download DodgeBot 1.1.2](../../raw/main/download/DodgeBot.zip)
+## [Download DodgeBot 1.1.3](../../raw/main/download/DodgeBot.zip)
 
 ## Install
 1. Quit the game completely.
@@ -27,6 +27,7 @@ The installer copies two folders into `mods`, adds two lines to `mods.vdf`, and 
 - Unofficial community mod, not affiliated with Respawn, EA or R5Flowstate.
 
 ## Changelog
+- **1.1.3**: Real fight bots no longer hold fire up close or stall after a reload.
 - **1.1.2**: Legend bots now spawn at full health instead of copying yours.
 - **1.1.1**: English text throughout.
 - **1.1.0**: Real fight mode.

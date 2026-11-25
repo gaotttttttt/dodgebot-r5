@@ -1655,6 +1655,13 @@ bool function DodgeBot_HasShot( entity bot, entity owner )
 	return los.fraction >= 1.0 || los.hitEnt == owner
 }
 
+bool function DodgeBot_WantsShot( DodgeState st )
+{
+	if ( RealFight_IsOn( st.owner ) )
+		return RealFight_HasShot( st )
+	return DodgeBot_HasShot( st.bot, st.owner )
+}
+
 void function DodgeBot_FireLoop( DodgeState st )
 {
 	entity bot = st.bot
@@ -1723,15 +1730,18 @@ void function DodgeBot_FireLoop( DodgeState st )
 			st.wantReload = false
 			if ( IsValid( weapon ) && weapon.GetWeaponPrimaryClipCount() <= 0 )
 				weapon.SetWeaponPrimaryClipCount( weapon.GetWeaponPrimaryClipCountMax() )
-			wait RandomFloatRange( DODGE_RELOAD_SETTLE_MIN, DODGE_RELOAD_SETTLE_MAX )
+			float settle = RandomFloatRange( DODGE_RELOAD_SETTLE_MIN, DODGE_RELOAD_SETTLE_MAX )
+			if ( RealFight_IsOn( owner ) )
+				settle = RandomFloatRange( 0.05, 0.1 )
+			wait settle
 			hadShot = false
 			continue
 		}
-		bool shot = DodgeBot_HasShot( bot, owner )
+		bool shot = DodgeBot_WantsShot( st )
 		if ( shot && !hadShot )
 		{
 			wait RealFight_FireReact( st, RandomFloatRange( DODGE_FIRE_REACT_MIN, DODGE_FIRE_REACT_MAX ) )
-			shot = IsValid( owner ) && IsAlive( owner ) && DodgeBot_HasShot( bot, owner )
+			shot = IsValid( owner ) && IsAlive( owner ) && DodgeBot_WantsShot( st )
 		}
 		hadShot = shot
 		DodgeBot_SetTrigger( st, shot )
