@@ -35,7 +35,7 @@ Dummies move by animation root motion, so the mod measures each strafe and calib
 | `dodgebot respawn 8 20` | Use 8-20 m (3-60 m allowed) |
 | `dodgebot respawn off` | Stock behavior: spawn in front of the crosshair |
 
-Applies only after a kill. Spawn points need standable ground, a clear line to your eyes and a height difference under about 5 m. If none is found, that respawn uses the stock position. 1 m is about 39.37 units.
+Applies after a kill, and to a newly added target that lands farther away than the maximum. Spawn points need standable ground, a clear line to your eyes and a height difference under about 5 m. If none is found, that respawn uses the stock position. 1 m is about 39.37 units.
 
 ## Legend bodies
 On the Targets page set **strafer body = legend** and **class/legend = same as me**. Target presets do not matter, and the Lab's own target fire and accuracy settings have no effect on these bots.

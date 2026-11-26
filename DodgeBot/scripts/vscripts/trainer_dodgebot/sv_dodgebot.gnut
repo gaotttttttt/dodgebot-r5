@@ -866,6 +866,26 @@ void function DodgeBot_ArmRespawn( entity owner )
 		Distance2D( spot.origin, owner.GetOrigin() ) / DODGE_UNITS_PER_METER, string( spot.origin ) ) )
 }
 
+// A target added fresh (not a respawn after a kill) stands wherever the Lab put
+// it, often far off. With the ring on, move it onto the ring too.
+void function DodgeBot_PlaceNew( entity bot, entity owner )
+{
+	if ( !file.masterOn )
+		return
+	DodgeRespawnPrefs prefs = DodgeBot_RespawnPrefs( owner )
+	if ( !prefs.on || prefs.armed )
+		return
+	float far = Distance2D( bot.GetOrigin(), owner.GetOrigin() )
+	if ( far <= prefs.maxM * DODGE_UNITS_PER_METER + 40.0 )
+		return
+	AimTrainerSpawnSpot spot = DodgeBot_PickRingSpot( owner, prefs )
+	if ( !spot.ok )
+		return
+	bot.SetOrigin( spot.origin )
+	printt( format( "[DODGEBOT] new target for %s moved from %.1f m to %.1f m", owner.GetPlayerName(),
+		far / DODGE_UNITS_PER_METER, Distance2D( spot.origin, owner.GetOrigin() ) / DODGE_UNITS_PER_METER ) )
+}
+
 void function DodgeBot_RestoreSpawnLater( entity owner, int token )
 {
 	owner.EndSignal( "OnDestroy" )
@@ -1042,6 +1062,7 @@ void function DodgeBot_Start( entity bot, entity owner, bool isBot )
 	st.bot = bot
 	st.owner = owner
 	st.isBot = isBot
+	DodgeBot_PlaceNew( bot, owner )
 	st.anchor = bot.GetOrigin()
 	st.prefDist = min( max( Distance2D( bot.GetOrigin(), owner.GetOrigin() ), 250.0 ), 1500.0 )
 	st.side = RandomInt( 2 )
