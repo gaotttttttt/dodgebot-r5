@@ -38,7 +38,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 			xpos	0
 			ypos	0
 			wide	1180
-			tall	920
+			tall	964
 			fillColor	"12 17 14 245"
 			drawColor	"12 17 14 245"
 			visible	1
@@ -366,12 +366,206 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 			pin_to_sibling_corner	RIGHT
 		}
 
+		GodRow
+		{
+			ControlName	ImagePanel
+			xpos	-4
+			ypos	-156
+			wide	1176
+			tall	44
+			fillColor	"0 0 0 0"
+			drawColor	"0 0 0 0"
+			visible	1
+			zpos	1
+			pin_to_sibling	MainFrame
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		GodText
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-24
+			ypos	-1
+			wide	480
+			tall	26
+			fontHeight	22
+			textAlignment	west
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	GodRow
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	TOP_LEFT
+		}
+
+		GodHint
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	600
+			tall	18
+			fontHeight	15
+			textAlignment	west
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	3
+			allcaps	0
+			pin_to_sibling	GodText
+			pin_corner_to_sibling	TOP_LEFT
+			pin_to_sibling_corner	BOTTOM_LEFT
+		}
+
+		GodBody
+		{
+			ControlName	ImagePanel
+			xpos	-32
+			ypos	0
+			wide	240
+			tall	34
+			fillColor	"6 10 8 210"
+			drawColor	"6 10 8 210"
+			visible	1
+			zpos	2
+			pin_to_sibling	GodRow
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		GodSegFill0
+		{
+			ControlName	ImagePanel
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	GodBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		GodSegText0
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	GodBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		GodSeg0
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	GodBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		GodSegFill1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fillColor	"61 218 138 255"
+			drawColor	"61 218 138 255"
+			visible	0
+			zpos	3
+			pin_to_sibling	GodBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		GodSegText1
+		{
+			ControlName	Label
+			labelText	x
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"169 184 175 255"
+			visible	1
+			zpos	5
+			allcaps	0
+			pin_to_sibling	GodBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		GodSeg1
+		{
+			ControlName	RuiButton
+			xpos	-120
+			ypos	0
+			wide	120
+			tall	34
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	GodBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
+		GodSplit1
+		{
+			ControlName	ImagePanel
+			xpos	-120
+			ypos	0
+			wide	2
+			tall	34
+			fillColor	"169 184 175 70"
+			drawColor	"169 184 175 70"
+			visible	1
+			zpos	4
+			pin_to_sibling	GodBody
+			pin_corner_to_sibling	LEFT
+			pin_to_sibling_corner	LEFT
+		}
+
 		SectionMoveTitle
 		{
 			ControlName	Label
 			labelText	x
 			xpos	-28
-			ypos	-166
+			ypos	-210
 			wide	400
 			tall	32
 			fontHeight	17
@@ -389,7 +583,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-28
-			ypos	-194
+			ypos	-238
 			wide	1120
 			tall	2
 			fillColor	"61 218 138 255"
@@ -405,7 +599,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-4
-			ypos	-200
+			ypos	-244
 			wide	1176
 			tall	44
 			fillColor	"0 0 0 0"
@@ -739,7 +933,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-4
-			ypos	-244
+			ypos	-288
 			wide	1176
 			tall	44
 			fillColor	"0 0 0 0"
@@ -1073,7 +1267,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-4
-			ypos	-288
+			ypos	-332
 			wide	1176
 			tall	44
 			fillColor	"0 0 0 0"
@@ -1287,7 +1481,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 			ControlName	Label
 			labelText	x
 			xpos	-28
-			ypos	-342
+			ypos	-386
 			wide	400
 			tall	32
 			fontHeight	17
@@ -1305,7 +1499,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-28
-			ypos	-370
+			ypos	-414
 			wide	1120
 			tall	2
 			fillColor	"61 218 138 255"
@@ -1321,7 +1515,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-4
-			ypos	-376
+			ypos	-420
 			wide	1176
 			tall	44
 			fillColor	"0 0 0 0"
@@ -1515,7 +1709,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-4
-			ypos	-420
+			ypos	-464
 			wide	1176
 			tall	44
 			fillColor	"0 0 0 0"
@@ -1728,7 +1922,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-4
-			ypos	-464
+			ypos	-508
 			wide	1176
 			tall	44
 			fillColor	"0 0 0 0"
@@ -1942,7 +2136,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 			ControlName	Label
 			labelText	x
 			xpos	-28
-			ypos	-518
+			ypos	-562
 			wide	400
 			tall	32
 			fontHeight	17
@@ -1960,7 +2154,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-28
-			ypos	-546
+			ypos	-590
 			wide	1120
 			tall	2
 			fillColor	"61 218 138 255"
@@ -1976,7 +2170,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-4
-			ypos	-552
+			ypos	-596
 			wide	1176
 			tall	44
 			fillColor	"0 0 0 0"
@@ -2170,7 +2364,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-4
-			ypos	-596
+			ypos	-640
 			wide	1176
 			tall	44
 			fillColor	"0 0 0 0"
@@ -2434,7 +2628,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-4
-			ypos	-640
+			ypos	-684
 			wide	1176
 			tall	44
 			fillColor	"0 0 0 0"
@@ -2648,7 +2842,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 			ControlName	Label
 			labelText	x
 			xpos	-28
-			ypos	-694
+			ypos	-738
 			wide	400
 			tall	32
 			fontHeight	17
@@ -2666,7 +2860,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-28
-			ypos	-722
+			ypos	-766
 			wide	1120
 			tall	2
 			fillColor	"61 218 138 255"
@@ -2682,7 +2876,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-4
-			ypos	-728
+			ypos	-772
 			wide	1176
 			tall	44
 			fillColor	"0 0 0 0"
@@ -2876,7 +3070,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-4
-			ypos	-772
+			ypos	-816
 			wide	1176
 			tall	44
 			fillColor	"0 0 0 0"
@@ -3140,7 +3334,7 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 		{
 			ControlName	ImagePanel
 			xpos	-4
-			ypos	-816
+			ypos	-860
 			wide	1176
 			tall	44
 			fillColor	"0 0 0 0"

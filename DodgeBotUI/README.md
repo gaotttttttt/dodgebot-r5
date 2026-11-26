@@ -12,7 +12,8 @@ To bind it yourself: `bind_US_standard "HOME" "dodgebotui" 0`. Press **ESC** or 
 ## Settings
 | Section | Setting | Command |
 |---|---|---|
-| Spawn targets | Strafing targets (0-6), legend body, your legend | `dev_aimtrainer strafer_add` / `strafer_remove` |
+| Targets and practice | Strafing targets (0-6), legend body, your legend | `dev_aimtrainer strafer_add` / `strafer_remove` |
+| | God mode | `demigod 1` / `demigod 0` |
 | Dodging and speed | Difficulty | `dodgebot 0`-`3` |
 | | Speed preset | `dodgebot speed off/unarmed/hipfire/ads` |
 | | Custom speed (50-400) | `dodgebot speed <number>` |
@@ -30,4 +31,5 @@ Values not in use are greyed out. The footer shows the last command sent. Reset 
 ## How long settings last
 - They survive map changes: changes you made in the window are resent about 3 s after loading in.
 - They reset when the game restarts. The language choice is kept.
+- God mode, once set here, is sent again after every map load. The Lab god mode switch only flips the current state, so use one or the other. Reset all leaves it alone.
 - The window does not see commands typed in the console, and its values overwrite them on the next load.
