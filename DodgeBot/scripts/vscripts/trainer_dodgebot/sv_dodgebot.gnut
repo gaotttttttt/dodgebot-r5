@@ -901,12 +901,35 @@ void function DodgeBot_OnPlayerKilled( entity victim, entity attacker, var damag
 	attacker.SetShieldHealth( attacker.GetShieldHealthMax() )
 }
 
+// With more than one legend bot out they count as a squad, so a kill only knocks
+// one down. Finish it at once, credited to whoever downed it, so it dies and
+// the Lab brings the next one.
+void function DodgeBot_OnBotDowned( entity victim, entity attacker, var damageInfo )
+{
+	if ( !file.masterOn || !IsValid( victim ) || !( victim in file.states ) || !file.states[ victim ].isBot )
+		return
+	int source = DamageInfo_GetDamageSourceIdentifier( damageInfo )
+	thread DodgeBot_FinishDowned( victim, attacker, source )
+}
+
+void function DodgeBot_FinishDowned( entity victim, entity attacker, int source )
+{
+	WaitFrame()
+	if ( !IsValid( victim ) || !IsAlive( victim ) )
+		return
+	if ( !IsValid( attacker ) )
+		attacker = svGlobal.worldspawn
+	printt( format( "[DODGEBOT] %s downed, finishing it", victim.GetPlayerName() ) )
+	victim.Die( attacker, attacker, { damageSourceId = source } )
+}
+
 void function DodgeBot_EntitiesDidLoad()
 {
 	if ( file.scanning )
 		return
 	file.scanning = true
 	AddCallback_OnPlayerKilled( DodgeBot_OnPlayerKilled )
+	Bleedout_AddCallback_OnPlayerStartBleedout( DodgeBot_OnBotDowned )
 	thread DodgeBot_ScanThread()
 }
 

@@ -12,6 +12,7 @@ To bind it yourself: `bind_US_standard "HOME" "dodgebotui" 0`. Press **ESC** or 
 ## Settings
 | Section | Setting | Command |
 |---|---|---|
+| Spawn targets | Strafing targets (0-6), legend body, your legend | `dev_aimtrainer strafer_add` / `strafer_remove` |
 | Dodging and speed | Difficulty | `dodgebot 0`-`3` |
 | | Speed preset | `dodgebot speed off/unarmed/hipfire/ads` |
 | | Custom speed (50-400) | `dodgebot speed <number>` |

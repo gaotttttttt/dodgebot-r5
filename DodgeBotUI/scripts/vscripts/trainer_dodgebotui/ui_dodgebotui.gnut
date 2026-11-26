@@ -15,6 +15,7 @@ const asset DODGEBOTUI_MENU_FILE = $"resource/ui/menus/trainer_dodgebotui/traine
 const string DODGEBOTUI_MENU_NAME = "DodgeBotUI_SettingsMenu"
 const string DODGEBOTUI_STORE = "dodgebot"   // LocalStore: "zh" or "en"
 const int DODGEBOTUI_SEG_W = 120        // option segment width, matches the layout
+const int DODGEBOTUI_SPAWN_MAX = 6      // AIMTRAINER_MAX_STRAFER_SLOTS
 const int DODGEBOTUI_FILL_W = 172       // stepper bar width, matches the layout
 
 // Speed modes, in option order; DODGEBOTUI_SPEED_CUSTOM is the stepper.
@@ -58,6 +59,7 @@ struct
 	int realFight = 0        // separate "real fight" brain
 	int realCover = 1        // 0 off, 1 hurt/reload, 2 often
 	int realSlide = 1
+	int spawnCount = 0       // strafers added from here, reset on every load (the Lab allows 6)
 
 	bool changed = false     // anything set this session; only then resend on load
 	string lastSent = ""
@@ -80,6 +82,7 @@ void function DodgeBotUI_InitMenu( var menu )
 	AddMenuEventHandler( menu, eUIEvent.MENU_OPEN, DodgeBotUI_OnOpen )
 	AddMenuEventHandler( menu, eUIEvent.MENU_NAVIGATE_BACK, DodgeBotUI_OnBack )
 
+	DodgeBotUI_AddStepper( "SpawnCount", 0, DODGEBOTUI_SPAWN_MAX, 1, "" )
 	DodgeBotUI_AddOption( "Level", 4 )
 	DodgeBotUI_AddOption( "SpeedPreset", 4 )
 	DodgeBotUI_AddStepper( "CustomSpeed", 50, 400, 5, "" )
@@ -109,6 +112,7 @@ void function DodgeBotUI_ApplyLang()
 {
 	DodgeBotUI_SetLabel( "TitleLabel", DodgeBotUI_T( "DodgeBot 躲子弹靶子", "DodgeBot" ) )
 	DodgeBotUI_SetLabel( "TitleSubLabel", DodgeBotUI_T( "设置（改完立即生效）", "Settings (applied at once)" ) )
+	DodgeBotUI_SetLabel( "SectionSpawnTitle", DodgeBotUI_T( "生成靶子", "SPAWN TARGETS" ) )
 	DodgeBotUI_SetLabel( "SectionMoveTitle", DodgeBotUI_T( "躲避与移速", "DODGING AND SPEED" ) )
 	DodgeBotUI_SetLabel( "SectionRespawnTitle", DodgeBotUI_T( "击杀后刷新", "RESPAWN AFTER A KILL" ) )
 	DodgeBotUI_SetLabel( "SectionLegendTitle", DodgeBotUI_T( "传奇靶子", "LEGEND BOTS" ) )
@@ -116,6 +120,7 @@ void function DodgeBotUI_ApplyLang()
 	DodgeBotUI_SetLabel( "FooterCloseLabel", DodgeBotUI_T( "关闭", "Close" ) )
 	DodgeBotUI_SetLabel( "ResetLabel", DodgeBotUI_T( "恢复默认", "Reset all" ) )
 	DodgeBotUI_SetLabel( "StatusLabel", "" )
+	DodgeBotUI_RowText( "SpawnCount", DodgeBotUI_T( "移动靶数量", "Strafing targets" ), DodgeBotUI_T( "传奇身体，和你同一个传奇；点 < > 增减，最多 6 个", "Legend bodies, your legend; click < > to remove or add, up to 6" ), [] )
 	DodgeBotUI_RowText( "Level", DodgeBotUI_T( "难度", "Difficulty" ), DodgeBotUI_T( "反应速度和骗招比例", "Reaction time and share of bait strafes" ), [ DodgeBotUI_T( "关闭", "Off" ), DodgeBotUI_T( "休闲", "Casual" ), DodgeBotUI_T( "排位", "Ranked" ), DodgeBotUI_T( "职业", "Pro" ) ] )
 	DodgeBotUI_RowText( "SpeedPreset", DodgeBotUI_T( "移速挡位", "Speed preset" ), DodgeBotUI_T( "跟随 Lab 扫射速度滑块，或固定 Apex 移速", "Follow the Lab strafe slider, or a fixed Apex speed" ), [ DodgeBotUI_T( "跟随滑块", "Lab slider" ), DodgeBotUI_T( "空手 199", "Unarmed 199" ), DodgeBotUI_T( "腰射 173", "Hipfire 173" ), DodgeBotUI_T( "开镜 130", "ADS 130" ) ] )
 	DodgeBotUI_RowText( "CustomSpeed", DodgeBotUI_T( "自定义移速", "Custom speed" ), DodgeBotUI_T( "点 < > 改用这个速度（u/s）", "Click < > to use a custom speed (u/s)" ), [] )
@@ -329,6 +334,11 @@ void function DodgeBotUI_OnOption( string name, int pick )
 
 void function DodgeBotUI_OnStep( DodgeBotUIStepper row, int dir )
 {
+	if ( row.name == "SpawnCount" )
+	{
+		DodgeBotUI_StepSpawn( dir )
+		return
+	}
 	int value = DodgeBotUI_StepperValue( row.name ) + dir * row.step
 	value = maxint( row.minValue, minint( row.maxValue, value ) )
 	switch ( row.name )
@@ -361,10 +371,38 @@ void function DodgeBotUI_OnStep( DodgeBotUIStepper row, int dir )
 	DodgeBotUI_Refresh()
 }
 
+// Remove always asks the Lab, so a count that drifted from the Lab can be brought down.
+void function DodgeBotUI_StepSpawn( int dir )
+{
+	if ( dir > 0 )
+	{
+		if ( file.spawnCount >= DODGEBOTUI_SPAWN_MAX )
+			return
+		file.spawnCount++
+		DodgeBotUI_SendBody()
+		DodgeBotUI_Send( "dev_aimtrainer strafer_add" )
+	}
+	else
+	{
+		file.spawnCount = maxint( 0, file.spawnCount - 1 )
+		DodgeBotUI_Send( "dev_aimtrainer strafer_remove" )
+	}
+	DodgeBotUI_Refresh()
+}
+
+// Targets from here are always legend bodies, same legend as you.
+void function DodgeBotUI_SendBody()
+{
+	DodgeBotUI_Send( "dev_aimtrainer strafer_body legend" )
+	DodgeBotUI_Send( "dev_aimtrainer strafer_legend same" )
+}
+
 int function DodgeBotUI_StepperValue( string name )
 {
 	switch ( name )
 	{
+		case "SpawnCount":
+			return file.spawnCount
 		case "CustomSpeed":
 			return file.customSpeed
 		case "RespawnMin":
@@ -483,6 +521,7 @@ void function DodgeBotUI_SendAll()
 void function DodgeBotUI_PushSaved()
 {
 	DodgeBotUI_SendLang()
+	file.spawnCount = 0   // a new map starts with no strafers
 	if ( !file.changed )
 		return
 	printt( "[DODGEBOTUI] level loaded, resending saved settings" )

@@ -2,13 +2,13 @@
 
 A training mod for the R5Flowstate (S30) Dev Lab. Targets strafe, bait, aim down sights and shoot back like human players. Includes a one-click installer and an in-game settings window.
 
-## [Download DodgeBot 1.2.0](../../raw/main/download/DodgeBot.zip)
+## [Download DodgeBot 1.3.0](../../raw/main/download/DodgeBot.zip)
 
 ## Install
 1. Quit the game completely.
 2. **Extract the whole zip** and double-click `Install.bat`.
 3. Host a local Dev Lab and press **HOME** to open the settings window.
-4. On the Targets page set strafer body = legend and class/legend = same as me, then spawn a strafing target.
+4. Under **Spawn targets** at the top of the window, click `>` to add a legend target (up to 6). Or use the Lab Targets page: strafer body = legend, class/legend = same as me.
 
 To update, run the new `Install.bat`. To remove, run `Uninstall.bat`.
 
@@ -17,6 +17,7 @@ The installer copies two folders into `mods`, adds two lines to `mods.vdf`, and 
 ## Features
 - **Dodging**: Casual, Ranked and Pro, with reaction delay, long strafes and baits.
 - **Legend bots that shoot back**: copy your legend, adjustable aim, hipfire within 10 m and ADS beyond.
+- **Several targets**: add up to 6 legend targets from the settings window.
 - **360-degree respawn**: the next target appears 10-17 m away in any direction.
 - **Real fight** (off by default): cover, reloading, peeking, slide-jump swings, pushing and backing off.
 
@@ -28,6 +29,7 @@ The installer copies two folders into `mods`, adds two lines to `mods.vdf`, and 
 - Unofficial community mod, not affiliated with Respawn, EA or R5Flowstate.
 
 ## Changelog
+- **1.3.0**: Spawn up to 6 legend targets from the settings window. With several legend bots out, a killed one dies instead of being knocked down, and the next one spawns.
 - **1.2.0**: Chinese / English switch in the settings window. The choice is remembered and also sets the language of on-screen messages.
 - **1.1.5**: Real fight: better cover and reloading, shooting and swapping during slide jumps, air turns on a swap. Gun swapping in normal mode. A kill refills your health and shield.
 - **1.1.4**: Real fight bots use both of your guns: they swap when one runs dry.

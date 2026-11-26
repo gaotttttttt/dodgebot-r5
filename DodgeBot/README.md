@@ -53,6 +53,7 @@ On the Targets page set **strafer body = legend** and **class/legend = same as m
 - **Fire** needs line of sight and a crosshair within about 10 degrees of you, after a 0.18-0.32 s reaction. It reloads, and respects auto, semi-auto and burst guns.
 - **Two guns**: swaps to the other gun when one runs dry in a fight, and reloads the empty one out of sight. Carry two guns yourself; it copies your loadout when it spawns.
 - **Refill**: killing a legend bot fills your health and shield.
+- **Several bots**: with more than one legend bot out the game would knock a killed one down; it is finished at once, credited to you, so the next one spawns.
 
 ## Real fight (off by default)
 Legend bodies only. While it is off, the dodging logic above is unchanged.
