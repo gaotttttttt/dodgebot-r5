@@ -15,6 +15,8 @@ Strafing targets spawned from Dev Lab > Targets react to your crosshair, shots a
 | `dodgebot 2` | Ranked | 220-320 ms | Long strafes mixed with simple baits |
 | `dodgebot 3` | Pro | 160-240 ms | Mostly short-short-long baits |
 
+`dodgebot lang zh` / `en` sets the language of the on-screen messages (English by default). The settings window sends it for you.
+
 ### Speed presets
 | Command | Speed | Apex equivalent |
 |---|---|---|

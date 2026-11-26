@@ -32,6 +32,7 @@
 global function CodeCallback_Trainer_DodgeBot_ModInit
 // Shared with sv_realfight.gnut (the separate "real fight" brain).
 global function DodgeBot_Chance
+global function DodgeBot_T
 global function DodgeBot_WrapYaw
 global function DodgeBot_GetLevel
 global function DodgeBot_Tier
@@ -244,6 +245,7 @@ struct
 	bool zoomByToggle = false             // holding the zoom button did not zoom
 	int zoomSwaps = 0
 	table< entity, bool > deathWatched
+	table< entity, bool > chinese         // message language, set by the window
 	float botSideSign = 1.0               // flips if +side turns out to move left
 	int botSignMismatch = 0
 	float natAds = 0.0                    // same while holding ADS (zoomed or not), learned
@@ -411,14 +413,22 @@ int function DodgeBot_GetLevel( entity owner )
 	return file.defaultLevel
 }
 
-string function DodgeBot_LevelName( int level )
+// Message text in the language of the player (English unless set).
+string function DodgeBot_T( entity player, string zh, string en )
+{
+	if ( ( player in file.chinese ) && file.chinese[ player ] )
+		return zh
+	return en
+}
+
+string function DodgeBot_LevelName( entity player, int level )
 {
 	switch ( level )
 	{
-		case 0: return "Off"
-		case 1: return "Casual"
-		case 2: return "Ranked"
-		case 3: return "Pro"
+		case 0: return DodgeBot_T( player, "关闭", "Off" )
+		case 1: return DodgeBot_T( player, "休闲", "Casual" )
+		case 2: return DodgeBot_T( player, "排位", "Ranked" )
+		case 3: return DodgeBot_T( player, "职业", "Pro" )
 	}
 	return string( level )
 }
@@ -436,6 +446,11 @@ void function DodgeBot_Cmd( entity player, array<string> args )
 		return
 
 	int level = DodgeBot_GetLevel( player )
+	if ( args.len() >= 2 && args[0].tolower() == "lang" )
+	{
+		file.chinese[ player ] <- args[1].tolower() == "zh"
+		return
+	}
 	if ( args.len() >= 1 && args[0].tolower() == "speed" )
 	{
 		DodgeBot_SpeedCmd( player, args )
@@ -472,7 +487,7 @@ void function DodgeBot_Cmd( entity player, array<string> args )
 			level = a.tointeger()
 		else
 		{
-			SendHudMessage( player, "Usage: dodgebot 0 (off) / 1 (casual) / 2 (ranked) / 3 (pro)\ndodgebot speed unarmed / hipfire / ads / off / <number>\ndodgebot respawn on / off / <min m> <max m>\ndodgebot fire on / off (legend bots shoot back)\ndodgebot aim <0-100> (legend bot aim)\ndodgebot ads off / auto / on (legend bot ADS)", -1, 0.3, 255, 200, 120, 255, 0.1, 6.0, 0.5 )
+			SendHudMessage( player, DodgeBot_T( player, "用法: dodgebot 0(关) / 1(休闲) / 2(排位) / 3(职业)\ndodgebot speed unarmed / hipfire / ads / off / <数值>\ndodgebot respawn on / off / <最小米数> <最大米数>\ndodgebot fire on / off（传奇靶子还手）\ndodgebot aim <0-100>（传奇靶子枪法）\ndodgebot ads off / auto / on（传奇靶子开镜）", "Usage: dodgebot 0 (off) / 1 (casual) / 2 (ranked) / 3 (pro)\ndodgebot speed unarmed / hipfire / ads / off / <number>\ndodgebot respawn on / off / <min m> <max m>\ndodgebot fire on / off (legend bots shoot back)\ndodgebot aim <0-100> (legend bot aim)\ndodgebot ads off / auto / on (legend bot ADS)" ), -1, 0.3, 255, 200, 120, 255, 0.1, 6.0, 0.5 )
 			return
 		}
 		DodgeBot_SetLevel( player, level )
@@ -501,7 +516,7 @@ void function DodgeBot_SpeedCmd( entity player, array<string> args )
 
 		if ( target != 0.0 && ( target < DODGE_SPEED_MIN || target > DODGE_SPEED_MAX ) )
 		{
-			SendHudMessage( player, format( "Speed: unarmed (199) / hipfire (173) / ads (130) / off, or a number from %.0f to %.0f", DODGE_SPEED_MIN, DODGE_SPEED_MAX ), -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
+			SendHudMessage( player, format( DodgeBot_T( player, "速度挡位: unarmed(199) / hipfire(173) / ads(130) / off，或 %.0f-%.0f 之间的数值", "Speed: unarmed (199) / hipfire (173) / ads (130) / off, or a number from %.0f to %.0f" ), DODGE_SPEED_MIN, DODGE_SPEED_MAX ), -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
 			return
 		}
 		file.speedTargets[ player ] <- target
@@ -537,7 +552,7 @@ void function DodgeBot_RespawnCmd( entity player, array<string> args )
 			}
 			if ( lo < DODGE_RESPAWN_LIMIT_MIN_M || hi > DODGE_RESPAWN_LIMIT_MAX_M )
 			{
-				SendHudMessage( player, format( "Respawn distance must be %.0f-%.0f m, e.g. dodgebot respawn 10 17", DODGE_RESPAWN_LIMIT_MIN_M, DODGE_RESPAWN_LIMIT_MAX_M ), -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
+				SendHudMessage( player, format( DodgeBot_T( player, "刷新距离要在 %.0f-%.0f 米之间，例如: dodgebot respawn 10 17", "Respawn distance must be %.0f-%.0f m, e.g. dodgebot respawn 10 17" ), DODGE_RESPAWN_LIMIT_MIN_M, DODGE_RESPAWN_LIMIT_MAX_M ), -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
 				return
 			}
 			prefs.minM = lo
@@ -546,7 +561,7 @@ void function DodgeBot_RespawnCmd( entity player, array<string> args )
 		}
 		else
 		{
-			SendHudMessage( player, "Usage: dodgebot respawn on / off / <min m> <max m>", -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
+			SendHudMessage( player, DodgeBot_T( player, "用法: dodgebot respawn on / off / <最小米数> <最大米数>", "Usage: dodgebot respawn on / off / <min m> <max m>" ), -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
 			return
 		}
 	}
@@ -566,7 +581,7 @@ void function DodgeBot_FireCmd( entity player, array<string> args )
 			file.fireOn[ player ] <- false
 		else
 		{
-			SendHudMessage( player, "Usage: dodgebot fire on / off", -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
+			SendHudMessage( player, DodgeBot_T( player, "用法: dodgebot fire on / off", "Usage: dodgebot fire on / off" ), -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
 			return
 		}
 	}
@@ -584,7 +599,7 @@ void function DodgeBot_AimCmd( entity player, array<string> args )
 	{
 		if ( !DodgeBot_IsDigits( args[1] ) || args[1].tointeger() > 100 )
 		{
-			SendHudMessage( player, "Usage: dodgebot aim <0-100> (0 worst, 100 best)", -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
+			SendHudMessage( player, DodgeBot_T( player, "用法: dodgebot aim <0-100>（0 最差，100 最准）", "Usage: dodgebot aim <0-100> (0 worst, 100 best)" ), -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
 			return
 		}
 		file.aim[ player ] <- args[1].tointeger()
@@ -606,7 +621,7 @@ void function DodgeBot_AdsCmd( entity player, array<string> args )
 			file.ads[ player ] <- DODGE_ADS_ON
 		else
 		{
-			SendHudMessage( player, "Usage: dodgebot ads off (hipfire) / auto / on (always)", -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
+			SendHudMessage( player, DodgeBot_T( player, "用法: dodgebot ads off(腰射) / auto(自动) / on(一直开镜)", "Usage: dodgebot ads off (hipfire) / auto / on (always)" ), -1, 0.3, 255, 200, 120, 255, 0.1, 4.0, 0.5 )
 			return
 		}
 	}
@@ -620,13 +635,13 @@ int function DodgeBot_GetAds( entity owner )
 	return DODGE_ADS_AUTO
 }
 
-string function DodgeBot_AdsName( int ads )
+string function DodgeBot_AdsName( entity player, int ads )
 {
 	if ( ads == DODGE_ADS_OFF )
-		return "Hipfire"
+		return DodgeBot_T( player, "腰射", "Hipfire" )
 	if ( ads == DODGE_ADS_ON )
-		return "Always ADS"
-	return "Auto ADS"
+		return DodgeBot_T( player, "一直开镜", "Always ADS" )
+	return DodgeBot_T( player, "自动开镜", "Auto ADS" )
 }
 
 bool function DodgeBot_GetFire( entity owner )
@@ -647,8 +662,8 @@ string function DodgeBot_RespawnName( entity player )
 {
 	DodgeRespawnPrefs prefs = DodgeBot_RespawnPrefs( player )
 	if ( !prefs.on )
-		return "Default (in front of you)"
-	return format( "Around you, %.0f-%.0f m", prefs.minM, prefs.maxM )
+		return DodgeBot_T( player, "原版（准星前方）", "Default (in front of you)" )
+	return format( DodgeBot_T( player, "周围 %.0f-%.0f 米随机", "Around you, %.0f-%.0f m" ), prefs.minM, prefs.maxM )
 }
 
 bool function DodgeBot_IsDigits( string s )
@@ -664,17 +679,17 @@ bool function DodgeBot_IsDigits( string s )
 	return true
 }
 
-string function DodgeBot_SpeedName( float target )
+string function DodgeBot_SpeedName( entity player, float target )
 {
 	if ( target <= 0.0 )
-		return "Lab speed slider"
+		return DodgeBot_T( player, "跟随 Lab 速度滑块", "Lab speed slider" )
 	if ( target == DODGE_SPEED_UNARMED )
-		return "Unarmed 199"
+		return DodgeBot_T( player, "空手 199", "Unarmed 199" )
 	if ( target == DODGE_SPEED_HIPFIRE )
-		return "Hipfire 173"
+		return DodgeBot_T( player, "持枪腰射 173", "Hipfire 173" )
 	if ( target == DODGE_SPEED_ADS )
-		return "ADS 130"
-	return format( "Custom %.0f", target )
+		return DodgeBot_T( player, "开镜 130", "ADS 130" )
+	return format( DodgeBot_T( player, "自定义 %.0f", "Custom %.0f" ), target )
 }
 
 // Level, speed preset, and what the owner's bots really did over the last
@@ -702,10 +717,10 @@ void function DodgeBot_ShowStatus( entity player )
 	string average = avgN > 0 ? format( "%.0f", avgSum / float( avgN ) ) : "-"
 	string fastest = peak > 0.0 ? format( "%.0f", peak ) : "-"
 
-	string levelName = file.masterOn ? DodgeBot_LevelName( level ) : "Off (MOD page switch is off)"
-	string fireName = DodgeBot_GetFire( player ) ? format( "On (aim %d)", DodgeBot_GetAim( player ) ) : "Off"
-	string line = format( "DodgeBot: %s | Speed: %s | Respawn: %s\nLegend bots shoot back: %s | %s\nLast %.0f s: average strafe %s | fastest %s u/s",
-		levelName, DodgeBot_SpeedName( target ), DodgeBot_RespawnName( player ), fireName, DodgeBot_AdsName( DodgeBot_GetAds( player ) ), DODGE_STATS_WINDOW, average, fastest )
+	string levelName = file.masterOn ? DodgeBot_LevelName( player, level ) : DodgeBot_T( player, "关闭（MOD 页开关已关）", "Off (MOD page switch is off)" )
+	string fireName = DodgeBot_GetFire( player ) ? format( DodgeBot_T( player, "开（枪法 %d）", "On (aim %d)" ), DodgeBot_GetAim( player ) ) : DodgeBot_T( player, "关", "Off" )
+	string line = format( DodgeBot_T( player, "躲子弹靶子: %s | 移速挡位: %s | 击杀后刷新: %s\n传奇靶子还手: %s | %s\n近 %.0f 秒实测: 横移平均 %s | 最快 %s u/s", "DodgeBot: %s | Speed: %s | Respawn: %s\nLegend bots shoot back: %s | %s\nLast %.0f s: average strafe %s | fastest %s u/s" ),
+		levelName, DodgeBot_SpeedName( player, target ), DodgeBot_RespawnName( player ), fireName, DodgeBot_AdsName( player, DodgeBot_GetAds( player ) ), DODGE_STATS_WINDOW, average, fastest )
 	SendHudMessage( player, line, -1, 0.3, 255, 255, 255, 255, 0.1, 4.0, 0.5 )
 	printt( format( "[DODGEBOT] %s level=%d speed=%.0f fire=%s aim=%d avg=%s peak=%s natSide=%.1f natDepth=%.1f natBot=%.1f natAds=%.1f botSideSign=%.0f",
 		player.GetPlayerName(), level, target, string( DodgeBot_GetFire( player ) ), DodgeBot_GetAim( player ), average, fastest, file.natSide, file.natDepth, file.natBot, file.natAds, file.botSideSign ) )
@@ -737,6 +752,8 @@ void function DodgeBot_SetLevel( entity player, int level )
 void function DodgeBot_OnClientDisconnected( entity player )
 {
 	RealFight_ForgetPlayer( player )
+	if ( player in file.chinese )
+		delete file.chinese[ player ]
 	if ( player in file.levels )
 		delete file.levels[ player ]
 	if ( player in file.speedTargets )

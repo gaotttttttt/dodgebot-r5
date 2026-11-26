@@ -3246,5 +3246,59 @@ resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu
 			pin_to_sibling_corner	CENTER
 		}
 
+		LangChip
+		{
+			ControlName	ImagePanel
+			xpos	-24
+			ypos	0
+			wide	130
+			tall	24
+			fillColor	"24 33 28 255"
+			drawColor	"24 33 28 255"
+			visible	1
+			zpos	7
+			pin_to_sibling	HeaderBand
+			pin_corner_to_sibling	RIGHT
+			pin_to_sibling_corner	RIGHT
+		}
+
+		LangLabel
+		{
+			ControlName	Label
+			labelText	x
+			xpos	0
+			ypos	0
+			wide	130
+			tall	24
+			fontHeight	15
+			textAlignment	center
+			fgcolor_override	"233 241 236 255"
+			visible	1
+			zpos	8
+			allcaps	0
+			pin_to_sibling	LangChip
+			pin_corner_to_sibling	CENTER
+			pin_to_sibling_corner	CENTER
+		}
+
+		LangButton
+		{
+			ControlName	RuiButton
+			xpos	0
+			ypos	0
+			wide	130
+			tall	24
+			zpos	103
+			visible	1
+			enabled	1
+			rui	"ui/invisible.rpak"
+			sound_focus	UI_Menu_Focus
+			sound_accept	UI_Menu_Accept
+			cursorVelocityModifier	"0.7"
+			pin_to_sibling	LangChip
+			pin_corner_to_sibling	CENTER
+			pin_to_sibling_corner	CENTER
+		}
+
 	}
 }

@@ -13,6 +13,7 @@ global function DodgeBotUI_PushSaved
 
 const asset DODGEBOTUI_MENU_FILE = $"resource/ui/menus/trainer_dodgebotui/trainer_dodgebotui__settings.menu"
 const string DODGEBOTUI_MENU_NAME = "DodgeBotUI_SettingsMenu"
+const string DODGEBOTUI_STORE = "dodgebot"   // LocalStore: "zh" or "en"
 const int DODGEBOTUI_SEG_W = 120        // option segment width, matches the layout
 const int DODGEBOTUI_FILL_W = 172       // stepper bar width, matches the layout
 
@@ -26,7 +27,7 @@ const int DODGEBOTUI_SPEED_CUSTOM = 4
 struct DodgeBotUIOption
 {
 	string name
-	array<string> labels
+	int count
 }
 
 struct DodgeBotUIStepper
@@ -60,6 +61,7 @@ struct
 
 	bool changed = false     // anything set this session; only then resend on load
 	string lastSent = ""
+	bool chinese = false     // window and message language, kept on disk
 } file
 
 void function UICodeCallback_Trainer_DodgeBotUI_ModInit()
@@ -78,35 +80,112 @@ void function DodgeBotUI_InitMenu( var menu )
 	AddMenuEventHandler( menu, eUIEvent.MENU_OPEN, DodgeBotUI_OnOpen )
 	AddMenuEventHandler( menu, eUIEvent.MENU_NAVIGATE_BACK, DodgeBotUI_OnBack )
 
-	DodgeBotUI_SetLabel( "TitleLabel", "DodgeBot" )
-	DodgeBotUI_SetLabel( "TitleSubLabel", "Settings (applied at once)" )
-	DodgeBotUI_SetLabel( "SectionMoveTitle", "DODGING AND SPEED" )
-	DodgeBotUI_SetLabel( "SectionRespawnTitle", "RESPAWN AFTER A KILL" )
-	DodgeBotUI_SetLabel( "SectionLegendTitle", "LEGEND BOTS" )
-	DodgeBotUI_SetLabel( "SectionRealTitle", "REAL FIGHT (LEGEND BODY ONLY)" )
-	DodgeBotUI_SetLabel( "FooterCloseLabel", "Close" )
-	DodgeBotUI_SetLabel( "ResetLabel", "Reset all" )
-	DodgeBotUI_SetLabel( "StatusLabel", "" )
-
-	DodgeBotUI_AddOption( "Level", "Difficulty", "Reaction time and share of bait strafes", [ "Off", "Casual", "Ranked", "Pro" ] )
-	DodgeBotUI_AddOption( "SpeedPreset", "Speed preset", "Follow the Lab strafe slider, or a fixed Apex speed", [ "Lab slider", "Unarmed 199", "Hipfire 173", "ADS 130" ] )
-	DodgeBotUI_AddStepper( "CustomSpeed", "Custom speed", "Click < > to use a custom speed (u/s)", 50, 400, 5, "" )
-	DodgeBotUI_AddOption( "Respawn", "360 deg respawn", "New bots spawn around you in any direction", [ "Off", "On" ] )
-	DodgeBotUI_AddStepper( "RespawnMin", "Nearest", "Meters", 3, 60, 1, " m" )
-	DodgeBotUI_AddStepper( "RespawnMax", "Farthest", "Meters", 3, 60, 1, " m" )
-	DodgeBotUI_AddOption( "Fire", "Shoot back", "Legend body bots fire at you", [ "Off", "On" ] )
-	DodgeBotUI_AddOption( "Ads", "ADS", "Auto: ADS beyond 10 m, hipfire within 10 m", [ "Hipfire", "Auto", "Always ADS" ] )
-	DodgeBotUI_AddStepper( "Aim", "Aim", "0 = worst, 100 = best", 0, 100, 5, "" )
-	DodgeBotUI_AddOption( "RealFight", "Real fight", "Uses cover, slide jumps and hunts you; off = plain dodging", [ "Off", "On" ] )
-	DodgeBotUI_AddOption( "RealCover", "Cover", "Often: may also hide right after being hit", [ "Never", "Hurt/reload", "Often" ] )
-	DodgeBotUI_AddOption( "RealSlide", "Slide jump", "Sprint, slide and jump to reposition", [ "Off", "On" ] )
+	DodgeBotUI_AddOption( "Level", 4 )
+	DodgeBotUI_AddOption( "SpeedPreset", 4 )
+	DodgeBotUI_AddStepper( "CustomSpeed", 50, 400, 5, "" )
+	DodgeBotUI_AddOption( "Respawn", 2 )
+	DodgeBotUI_AddStepper( "RespawnMin", 3, 60, 1, " m" )
+	DodgeBotUI_AddStepper( "RespawnMax", 3, 60, 1, " m" )
+	DodgeBotUI_AddOption( "Fire", 2 )
+	DodgeBotUI_AddOption( "Ads", 3 )
+	DodgeBotUI_AddStepper( "Aim", 0, 100, 5, "" )
+	DodgeBotUI_AddOption( "RealFight", 2 )
+	DodgeBotUI_AddOption( "RealCover", 3 )
+	DodgeBotUI_AddOption( "RealSlide", 2 )
 
 	Hud_AddEventHandler( Hud_GetChild( menu, "GoBackButton" ), UIE_CLICK, DodgeBotUI_OnCloseClick )
+	Hud_AddEventHandler( Hud_GetChild( menu, "LangButton" ), UIE_CLICK, DodgeBotUI_OnLangClick )
 	Hud_AddEventHandler( Hud_GetChild( menu, "ResetButton" ), UIE_CLICK, DodgeBotUI_OnResetClick )
 
 	SetMenuReceivesCommands( menu, false )
 	SetGamepadCursorEnabled( menu, true )
+	DodgeBotUI_LoadLang()
+	DodgeBotUI_ApplyLang()
 	printt( "[DODGEBOTUI] settings menu init" )
+}
+
+// Every text in the window, in the chosen language.
+void function DodgeBotUI_ApplyLang()
+{
+	DodgeBotUI_SetLabel( "TitleLabel", DodgeBotUI_T( "DodgeBot 躲子弹靶子", "DodgeBot" ) )
+	DodgeBotUI_SetLabel( "TitleSubLabel", DodgeBotUI_T( "设置（改完立即生效）", "Settings (applied at once)" ) )
+	DodgeBotUI_SetLabel( "SectionMoveTitle", DodgeBotUI_T( "躲避与移速", "DODGING AND SPEED" ) )
+	DodgeBotUI_SetLabel( "SectionRespawnTitle", DodgeBotUI_T( "击杀后刷新", "RESPAWN AFTER A KILL" ) )
+	DodgeBotUI_SetLabel( "SectionLegendTitle", DodgeBotUI_T( "传奇靶子", "LEGEND BOTS" ) )
+	DodgeBotUI_SetLabel( "SectionRealTitle", DodgeBotUI_T( "真人对战（只对传奇身体）", "REAL FIGHT (LEGEND BODY ONLY)" ) )
+	DodgeBotUI_SetLabel( "FooterCloseLabel", DodgeBotUI_T( "关闭", "Close" ) )
+	DodgeBotUI_SetLabel( "ResetLabel", DodgeBotUI_T( "恢复默认", "Reset all" ) )
+	DodgeBotUI_SetLabel( "StatusLabel", "" )
+	DodgeBotUI_RowText( "Level", DodgeBotUI_T( "难度", "Difficulty" ), DodgeBotUI_T( "反应速度和骗招比例", "Reaction time and share of bait strafes" ), [ DodgeBotUI_T( "关闭", "Off" ), DodgeBotUI_T( "休闲", "Casual" ), DodgeBotUI_T( "排位", "Ranked" ), DodgeBotUI_T( "职业", "Pro" ) ] )
+	DodgeBotUI_RowText( "SpeedPreset", DodgeBotUI_T( "移速挡位", "Speed preset" ), DodgeBotUI_T( "跟随 Lab 扫射速度滑块，或固定 Apex 移速", "Follow the Lab strafe slider, or a fixed Apex speed" ), [ DodgeBotUI_T( "跟随滑块", "Lab slider" ), DodgeBotUI_T( "空手 199", "Unarmed 199" ), DodgeBotUI_T( "腰射 173", "Hipfire 173" ), DodgeBotUI_T( "开镜 130", "ADS 130" ) ] )
+	DodgeBotUI_RowText( "CustomSpeed", DodgeBotUI_T( "自定义移速", "Custom speed" ), DodgeBotUI_T( "点 < > 改用这个速度（u/s）", "Click < > to use a custom speed (u/s)" ), [] )
+	DodgeBotUI_RowText( "Respawn", DodgeBotUI_T( "360° 随机刷新", "360 deg respawn" ), DodgeBotUI_T( "击杀后刷在你周围，练找人", "New bots spawn around you in any direction" ), [ DodgeBotUI_T( "关", "Off" ), DodgeBotUI_T( "开", "On" ) ] )
+	DodgeBotUI_RowText( "RespawnMin", DodgeBotUI_T( "最近距离", "Nearest" ), DodgeBotUI_T( "米", "Meters" ), [] )
+	DodgeBotUI_RowText( "RespawnMax", DodgeBotUI_T( "最远距离", "Farthest" ), DodgeBotUI_T( "米", "Meters" ), [] )
+	DodgeBotUI_RowText( "Fire", DodgeBotUI_T( "还手", "Shoot back" ), DodgeBotUI_T( "传奇身体的靶子会开枪打你", "Legend body bots fire at you" ), [ DodgeBotUI_T( "关", "Off" ), DodgeBotUI_T( "开", "On" ) ] )
+	DodgeBotUI_RowText( "Ads", DodgeBotUI_T( "开镜", "ADS" ), DodgeBotUI_T( "自动：10 米外开镜，10 米内腰射", "Auto: ADS beyond 10 m, hipfire within 10 m" ), [ DodgeBotUI_T( "腰射", "Hipfire" ), DodgeBotUI_T( "自动", "Auto" ), DodgeBotUI_T( "一直开镜", "Always ADS" ) ] )
+	DodgeBotUI_RowText( "Aim", DodgeBotUI_T( "枪法", "Aim" ), DodgeBotUI_T( "0 乱喷、跟枪慢，100 很准", "0 = worst, 100 = best" ), [] )
+	DodgeBotUI_RowText( "RealFight", DodgeBotUI_T( "真人对战", "Real fight" ), DodgeBotUI_T( "会找掩体、滑铲跳、找你；关掉就是原来的躲子弹", "Uses cover, slide jumps and hunts you; off = plain dodging" ), [ DodgeBotUI_T( "关", "Off" ), DodgeBotUI_T( "开", "On" ) ] )
+	DodgeBotUI_RowText( "RealCover", DodgeBotUI_T( "掩体", "Cover" ), DodgeBotUI_T( "积极：刚挨打也会考虑躲", "Often: may also hide right after being hit" ), [ DodgeBotUI_T( "不用", "Never" ), DodgeBotUI_T( "残血换弹", "Hurt/reload" ), DodgeBotUI_T( "积极", "Often" ) ] )
+	DodgeBotUI_RowText( "RealSlide", DodgeBotUI_T( "滑铲跳", "Slide jump" ), DodgeBotUI_T( "冲刺、滑铲、起跳换位置", "Sprint, slide and jump to reposition" ), [ DodgeBotUI_T( "关", "Off" ), DodgeBotUI_T( "开", "On" ) ] )
+	// The button names the language it switches to.
+	DodgeBotUI_SetLabel( "LangLabel", DodgeBotUI_T( "English", "中文" ) )
+}
+
+void function DodgeBotUI_RowText( string name, string title, string hint, array<string> labels )
+{
+	DodgeBotUI_SetLabel( name + "Text", title )
+	DodgeBotUI_SetLabel( name + "Hint", hint )
+	for ( int i = 0; i < labels.len(); i++ )
+		DodgeBotUI_SetLabel( format( "%sSegText%d", name, i ), labels[i] )
+}
+
+string function DodgeBotUI_T( string zh, string en )
+{
+	return file.chinese ? zh : en
+}
+
+// The saved choice, else the language the game runs in.
+void function DodgeBotUI_LoadLang()
+{
+	string saved = ""
+	try
+	{
+		saved = strip( LocalStore_Read( DODGEBOTUI_STORE ) )
+	}
+	catch ( eRead )
+	{
+	}
+	if ( saved == "zh" || saved == "en" )
+	{
+		file.chinese = saved == "zh"
+		return
+	}
+	string game = GetLanguage()
+	file.chinese = game == "schinese" || game == "tchinese"
+}
+
+void function DodgeBotUI_OnLangClick( var button )
+{
+	file.chinese = !file.chinese
+	try
+	{
+		LocalStore_Write( DODGEBOTUI_STORE, file.chinese ? "zh" : "en" )
+	}
+	catch ( eWrite )
+	{
+		printt( format( "[DODGEBOTUI] language not saved: %s", string( eWrite ) ) )
+	}
+	DodgeBotUI_SendLang()
+	DodgeBotUI_ApplyLang()
+	DodgeBotUI_Refresh()
+}
+
+// Language of the DodgeBot messages on screen.
+void function DodgeBotUI_SendLang()
+{
+	if ( IsFullyConnected() )
+		ClientCommand( file.chinese ? "dodgebot lang zh" : "dodgebot lang en" )
 }
 
 void function DodgeBotUI_SetLabel( string name, string text )
@@ -114,18 +193,15 @@ void function DodgeBotUI_SetLabel( string name, string text )
 	Hud_SetText( Hud_GetChild( file.menu, name ), text )
 }
 
-void function DodgeBotUI_AddOption( string name, string title, string hint, array<string> labels )
+void function DodgeBotUI_AddOption( string name, int count )
 {
 	DodgeBotUIOption row
 	row.name = name
-	row.labels = labels
+	row.count = count
 	file.options.append( row )
 
-	DodgeBotUI_SetLabel( name + "Text", title )
-	DodgeBotUI_SetLabel( name + "Hint", hint )
-	for ( int i = 0; i < labels.len(); i++ )
+	for ( int i = 0; i < count; i++ )
 	{
-		DodgeBotUI_SetLabel( format( "%sSegText%d", name, i ), labels[i] )
 		int pick = i
 		Hud_AddEventHandler( Hud_GetChild( file.menu, format( "%sSeg%d", name, i ) ), UIE_CLICK,
 			void function( var button ) : ( name, pick )
@@ -136,7 +212,7 @@ void function DodgeBotUI_AddOption( string name, string title, string hint, arra
 	}
 }
 
-void function DodgeBotUI_AddStepper( string name, string title, string hint, int minValue, int maxValue, int step, string suffix )
+void function DodgeBotUI_AddStepper( string name, int minValue, int maxValue, int step, string suffix )
 {
 	DodgeBotUIStepper row
 	row.name = name
@@ -146,8 +222,6 @@ void function DodgeBotUI_AddStepper( string name, string title, string hint, int
 	row.suffix = suffix
 	file.steppers.append( row )
 
-	DodgeBotUI_SetLabel( name + "Text", title )
-	DodgeBotUI_SetLabel( name + "Hint", hint )
 	Hud_AddEventHandler( Hud_GetChild( file.menu, name + "Dec" ), UIE_CLICK,
 		void function( var button ) : ( row )
 		{
@@ -408,6 +482,7 @@ void function DodgeBotUI_SendAll()
 // DodgeBot defaults, so put back what was set in this session.
 void function DodgeBotUI_PushSaved()
 {
+	DodgeBotUI_SendLang()
 	if ( !file.changed )
 		return
 	printt( "[DODGEBOTUI] level loaded, resending saved settings" )
@@ -424,7 +499,7 @@ void function DodgeBotUI_Refresh()
 	foreach ( DodgeBotUIOption row in file.options )
 	{
 		int value = DodgeBotUI_OptionValue( row.name )
-		for ( int i = 0; i < row.labels.len(); i++ )
+		for ( int i = 0; i < row.count; i++ )
 		{
 			bool on = i == value
 			Hud_SetVisible( Hud_GetChild( file.menu, format( "%sSegFill%d", row.name, i ) ), on )
@@ -454,9 +529,9 @@ void function DodgeBotUI_Refresh()
 		Hud_SetVisible( fill, fillW > 0 && active )
 	}
 
-	string status = IsFullyConnected() ? "" : "Not in a game: changes are sent when you load in"
+	string status = IsFullyConnected() ? "" : DodgeBotUI_T( "没在游戏里：改动会在进图后发送", "Not in a game: changes are sent when you load in" )
 	if ( status == "" && file.lastSent != "" )
-		status = "Sent: " + file.lastSent
+		status = DodgeBotUI_T( "已发送: ", "Sent: " ) + file.lastSent
 	DodgeBotUI_SetLabel( "StatusLabel", status )
 }
 

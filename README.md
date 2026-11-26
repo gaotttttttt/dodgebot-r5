@@ -2,7 +2,7 @@
 
 A training mod for the R5Flowstate (S30) Dev Lab. Targets strafe, bait, aim down sights and shoot back like human players. Includes a one-click installer and an in-game settings window.
 
-## [Download DodgeBot 1.1.5](../../raw/main/download/DodgeBot.zip)
+## [Download DodgeBot 1.2.0](../../raw/main/download/DodgeBot.zip)
 
 ## Install
 1. Quit the game completely.
@@ -22,11 +22,13 @@ The installer copies two folders into `mods`, adds two lines to `mods.vdf`, and 
 
 ## Notes
 - For local R5Flowstate S30 Dev Lab sessions only. Not for official Apex Legends.
-- Settings return to defaults when the game restarts.
+- Settings return to defaults when the game restarts. The language choice is kept.
+- Chinese / English: the button at the top right of the settings window. The first time it follows the game language.
 - Commands: [DodgeBot/README.md](DodgeBot/README.md) and [DodgeBotUI/README.md](DodgeBotUI/README.md).
 - Unofficial community mod, not affiliated with Respawn, EA or R5Flowstate.
 
 ## Changelog
+- **1.2.0**: Chinese / English switch in the settings window. The choice is remembered and also sets the language of on-screen messages.
 - **1.1.5**: Real fight: better cover and reloading, shooting and swapping during slide jumps, air turns on a swap. Gun swapping in normal mode. A kill refills your health and shield.
 - **1.1.4**: Real fight bots use both of your guns: they swap when one runs dry.
 - **1.1.3**: Real fight bots no longer hold fire up close or stall after a reload.

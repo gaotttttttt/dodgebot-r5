@@ -185,18 +185,18 @@ void function RealFight_Cmd( entity player, array<string> args )
 
 	if ( bad )
 	{
-		SendHudMessage( player, "Usage: realfight on / off\nrealfight cover off / hurt / often\nrealfight slide on / off", -1, 0.3, 255, 200, 120, 255, 0.1, 5.0, 0.5 )
+		SendHudMessage( player, DodgeBot_T( player, "用法: realfight on / off\nrealfight cover off / hurt / often\nrealfight slide on / off", "Usage: realfight on / off\nrealfight cover off / hurt / often\nrealfight slide on / off" ), -1, 0.3, 255, 200, 120, 255, 0.1, 5.0, 0.5 )
 		return
 	}
 
-	string coverName = "Off"
+	string coverName = DodgeBot_T( player, "关", "Off" )
 	if ( prefs.cover == RF_COVER_HURT )
-		coverName = "Hurt/reload"
+		coverName = DodgeBot_T( player, "残血/换弹", "Hurt/reload" )
 	else if ( prefs.cover == RF_COVER_OFTEN )
-		coverName = "Often"
-	string onName = prefs.on ? "On" : "Off"
-	string slideName = prefs.slide ? "On" : "Off"
-	SendHudMessage( player, format( "Real fight: %s | Cover: %s | Slide jump: %s", onName, coverName, slideName ), -1, 0.3, 255, 255, 255, 255, 0.1, 3.0, 0.5 )
+		coverName = DodgeBot_T( player, "积极", "Often" )
+	string onName = prefs.on ? DodgeBot_T( player, "开", "On" ) : DodgeBot_T( player, "关", "Off" )
+	string slideName = prefs.slide ? DodgeBot_T( player, "开", "On" ) : DodgeBot_T( player, "关", "Off" )
+	SendHudMessage( player, format( DodgeBot_T( player, "真人对战: %s | 掩体: %s | 滑铲跳: %s", "Real fight: %s | Cover: %s | Slide jump: %s" ), onName, coverName, slideName ), -1, 0.3, 255, 255, 255, 255, 0.1, 3.0, 0.5 )
 	printt( format( "[REALFIGHT] %s on=%s cover=%d slide=%s", player.GetPlayerName(), string( prefs.on ), prefs.cover, string( prefs.slide ) ) )
 }
 

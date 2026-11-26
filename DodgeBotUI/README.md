@@ -22,9 +22,11 @@ To bind it yourself: `bind_US_standard "HOME" "dodgebotui" 0`. Press **ESC** or 
 | | Aim (0-100) | `dodgebot aim <number>` |
 | Real fight | On/off, cover, slide jump | `realfight on/off`, `realfight cover ...`, `realfight slide on/off` |
 
+The button at the top right switches the window between Chinese and English (it also sends `dodgebot lang zh/en`). The first time it follows the game language, and the choice is saved in `platform/cfg/local_store`.
+
 Values not in use are greyed out. The footer shows the last command sent. Reset all restores the defaults.
 
 ## How long settings last
 - They survive map changes: changes you made in the window are resent about 3 s after loading in.
-- They reset when the game restarts.
+- They reset when the game restarts. The language choice is kept.
 - The window does not see commands typed in the console, and its values overwrite them on the next load.
