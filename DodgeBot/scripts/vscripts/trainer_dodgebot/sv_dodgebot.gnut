@@ -67,6 +67,9 @@ const float DODGE_RANGE_YAW = 28.0            // yaw bend that turns a strafe in
 const float DODGE_CLOSE_RANGE = 350.0
 const float DODGE_FAR_RANGE = 1500.0
 const int DODGE_DEFAULT_LEVEL = 2
+// Strafe rhythm: every leg lasts this much longer, so direction changes come
+// at a human pace. Top speed is the real player speed either way.
+const float DODGE_TEMPO = 1.35
 // Speed presets (units/s): Apex move speed by what the player holds.
 const float DODGE_SPEED_UNARMED = 199.0
 const float DODGE_SPEED_HIPFIRE = 173.0
@@ -375,6 +378,12 @@ DodgeParams function DodgeBot_Params( int level )
 	p.longMin    = DodgeBot_Tier( i, 0.70, 0.60, 0.55 )
 	p.longMax    = DodgeBot_Tier( i, 1.20, 1.10, 1.00 )
 	p.aimRadius  = DodgeBot_Tier( i, 22.0, 26.0, 30.0 )
+	p.shortMin *= DODGE_TEMPO
+	p.shortMax *= DODGE_TEMPO
+	p.legMin   *= DODGE_TEMPO
+	p.legMax   *= DODGE_TEMPO
+	p.longMin  *= DODGE_TEMPO
+	p.longMax  *= DODGE_TEMPO
 
 	// Combo weights, in DODGE_COMBO_* order: LONG, SL, SSL, ADAD, LRL, STOP.
 	if ( i == 1 )
