@@ -14,6 +14,7 @@ To bind it yourself: `bind_US_standard "HOME" "dodgebotui" 0`. Press **ESC** or 
 |---|---|---|
 | Targets and practice | Strafing targets (0-6), legend body, your legend | `dev_aimtrainer strafer_add` / `strafer_remove` |
 | | God mode | `demigod 1` / `demigod 0` |
+| | Target armor (white / blue / purple / red / random) | `dev_aimtrainer armor 1`-`4` / `10` |
 | Dodging and speed | Difficulty | `dodgebot 0`-`3` |
 | | Speed preset | `dodgebot speed off/unarmed/hipfire/ads` |
 | | Custom speed (50-400) | `dodgebot speed <number>` |

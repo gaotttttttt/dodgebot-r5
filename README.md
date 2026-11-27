@@ -2,7 +2,7 @@
 
 A training mod for the R5Flowstate (S30) Dev Lab. Targets strafe, bait, aim down sights and shoot back like human players. Includes a one-click installer and an in-game settings window.
 
-## [Download DodgeBot 1.3.3](../../raw/main/download/DodgeBot.zip)
+## [Download DodgeBot 1.4.0](../../raw/main/download/DodgeBot.zip)
 
 ## Install
 1. Quit the game completely.
@@ -19,6 +19,7 @@ The installer copies two folders into `mods`, adds two lines to `mods.vdf`, and 
 - **Legend bots that shoot back**: copy your legend, adjustable aim, hipfire within 10 m and ADS beyond.
 - **Several targets**: add up to 6 legend targets from the settings window.
 - **God mode switch**: a reliable on/off for Lab god mode, kept across map loads.
+- **Target armor**: pick the armor tier of dummies and legend bots from the window.
 - **360-degree respawn**: the next target appears 10-17 m away in any direction.
 - **Real fight** (off by default): cover, reloading, peeking, slide-jump swings, pushing and backing off.
 
@@ -30,6 +31,7 @@ The installer copies two folders into `mods`, adds two lines to `mods.vdf`, and 
 - Unofficial community mod, not affiliated with Respawn, EA or R5Flowstate.
 
 ## Changelog
+- **1.4.0**: Target armor in the settings window (white, blue, purple, red, random), for dummies and legend bots, set again after every map load.
 - **1.3.3**: Slower strafe rhythm: each strafe lasts about a third longer, so the bot changes direction at a human pace. Top speed is unchanged (the real player speed).
 - **1.3.2**: A newly added target (not one respawning after a kill) that lands beyond the respawn range is moved next to you as well.
 - **1.3.1**: God mode switch in the settings window: a plain on/off that is set again after every map load.

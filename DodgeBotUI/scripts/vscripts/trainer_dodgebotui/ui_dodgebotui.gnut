@@ -60,6 +60,7 @@ struct
 	int realCover = 1        // 0 off, 1 hurt/reload, 2 often
 	int realSlide = 1
 	int god = -1            // demigod: -1 untouched (the Lab decides), 0 off, 1 on
+	int armor = -1          // target armor pick: -1 untouched (the Lab decides), 0-3 white-red, 4 random
 	int spawnCount = 0       // strafers added from here, reset on every load (the Lab allows 6)
 
 	bool changed = false     // anything set this session; only then resend on load
@@ -85,6 +86,7 @@ void function DodgeBotUI_InitMenu( var menu )
 
 	DodgeBotUI_AddStepper( "SpawnCount", 0, DODGEBOTUI_SPAWN_MAX, 1, "" )
 	DodgeBotUI_AddOption( "God", 2 )
+	DodgeBotUI_AddOption( "Armor", 5 )
 	DodgeBotUI_AddOption( "Level", 4 )
 	DodgeBotUI_AddOption( "SpeedPreset", 4 )
 	DodgeBotUI_AddStepper( "CustomSpeed", 50, 400, 5, "" )
@@ -124,6 +126,7 @@ void function DodgeBotUI_ApplyLang()
 	DodgeBotUI_SetLabel( "StatusLabel", "" )
 	DodgeBotUI_RowText( "SpawnCount", DodgeBotUI_T( "移动靶数量", "Strafing targets" ), DodgeBotUI_T( "传奇身体，和你同一个传奇；点 < > 增减，最多 6 个", "Legend bodies, your legend; click < > to remove or add, up to 6" ), [] )
 	DodgeBotUI_RowText( "God", DodgeBotUI_T( "无敌", "God mode" ), DodgeBotUI_T( "血量不会低于 5；换图后自动重新打开", "Health never drops below 5; set again after every map load" ), [ DodgeBotUI_T( "关", "Off" ), DodgeBotUI_T( "开", "On" ) ] )
+	DodgeBotUI_RowText( "Armor", DodgeBotUI_T( "靶子护甲", "Target armor" ), DodgeBotUI_T( "假人和传奇靶子都生效；换图后自动重新设置", "Dummies and legend bots; set again after every map load" ), [ DodgeBotUI_T( "白", "White" ), DodgeBotUI_T( "蓝", "Blue" ), DodgeBotUI_T( "紫", "Purple" ), DodgeBotUI_T( "红", "Red" ), DodgeBotUI_T( "随机", "Random" ) ] )
 	DodgeBotUI_RowText( "Level", DodgeBotUI_T( "难度", "Difficulty" ), DodgeBotUI_T( "反应速度和骗招比例", "Reaction time and share of bait strafes" ), [ DodgeBotUI_T( "关闭", "Off" ), DodgeBotUI_T( "休闲", "Casual" ), DodgeBotUI_T( "排位", "Ranked" ), DodgeBotUI_T( "职业", "Pro" ) ] )
 	DodgeBotUI_RowText( "SpeedPreset", DodgeBotUI_T( "移速挡位", "Speed preset" ), DodgeBotUI_T( "跟随 Lab 扫射速度滑块，或固定 Apex 移速", "Follow the Lab strafe slider, or a fixed Apex speed" ), [ DodgeBotUI_T( "跟随滑块", "Lab slider" ), DodgeBotUI_T( "空手 199", "Unarmed 199" ), DodgeBotUI_T( "腰射 173", "Hipfire 173" ), DodgeBotUI_T( "开镜 130", "ADS 130" ) ] )
 	DodgeBotUI_RowText( "CustomSpeed", DodgeBotUI_T( "自定义移速", "Custom speed" ), DodgeBotUI_T( "点 < > 改用这个速度（u/s）", "Click < > to use a custom speed (u/s)" ), [] )
@@ -296,6 +299,13 @@ void function DodgeBotUI_OnResetClick( var button )
 
 void function DodgeBotUI_OnOption( string name, int pick )
 {
+	if ( name == "Armor" )
+	{
+		file.armor = pick
+		DodgeBotUI_SendArmor()
+		DodgeBotUI_Refresh()
+		return
+	}
 	if ( name == "God" )
 	{
 		file.god = pick
@@ -400,6 +410,16 @@ void function DodgeBotUI_StepSpawn( int dir )
 	DodgeBotUI_Refresh()
 }
 
+// Lab armor setting: 1-4 white-red, 10 random. It re-tiers live dummies and
+// legend bots, and new ones spawn with it.
+void function DodgeBotUI_SendArmor()
+{
+	if ( file.armor < 0 )
+		return
+	array<int> codes = [ 1, 2, 3, 4, 10 ]
+	DodgeBotUI_Send( "dev_aimtrainer armor " + codes[ minint( file.armor, 4 ) ] )
+}
+
 // An explicit on/off: a bare "demigod" only flips whatever the server has.
 void function DodgeBotUI_SendGod()
 {
@@ -438,6 +458,8 @@ int function DodgeBotUI_OptionValue( string name )
 	{
 		case "God":
 			return file.god
+		case "Armor":
+			return file.armor
 		case "Level":
 			return file.level
 		case "SpeedPreset":
@@ -542,6 +564,7 @@ void function DodgeBotUI_PushSaved()
 	DodgeBotUI_SendLang()
 	file.spawnCount = 0   // a new map starts with no strafers
 	DodgeBotUI_SendGod()   // the server forgets it on every load
+	DodgeBotUI_SendArmor()
 	if ( !file.changed )
 		return
 	printt( "[DODGEBOTUI] level loaded, resending saved settings" )
